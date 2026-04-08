@@ -71,19 +71,36 @@ export const EVMComponent: React.FC<{onVote: (candidateId: string) => void}> = (
         </div>
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
           {candidates.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 bg-white p-2 rounded border border-gray-300">
-              <span className="w-6 font-bold text-gray-800">{c.order}</span>
-              <div className="flex-1 h-12 bg-gray-100 border border-gray-300 rounded flex items-center justify-between px-2">
-                <span className="text-sm font-bold text-gray-800 truncate max-w-[100px]">{c.name}</span>
-                <img src={c.logoUrl} alt={c.name} className="h-10 w-10 object-contain" referrerPolicy="no-referrer" />
+            <div key={c.id} className="flex items-center gap-2 bg-white p-1.5 rounded border border-gray-300 shadow-sm">
+              <span className="w-5 font-bold text-gray-800 text-xs text-center">{c.order}</span>
+              <div className="flex-1 min-h-[3.5rem] bg-gray-50 border border-gray-300 rounded flex items-center px-3 gap-3">
+                <div className="flex-1">
+                  <p className="text-xs sm:text-sm font-black text-gray-900 leading-tight uppercase break-words">
+                    {c.name}
+                  </p>
+                </div>
+                <div className="w-10 h-10 flex-shrink-0 bg-white rounded border border-gray-200 p-0.5 flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={c.logoUrl} 
+                    alt={c.name} 
+                    className="max-w-full max-h-full object-contain" 
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=random&color=fff&size=128`;
+                    }}
+                  />
+                </div>
               </div>
-              <div className="w-8 h-8 rounded-full border-2 border-gray-400 flex items-center justify-center">
-                  <div className={`w-4 h-4 rounded-full ${blinking && selected === c.id ? 'bg-red-600 animate-pulse shadow-[0_0_10px_rgba(220,38,38,0.8)]' : 'bg-gray-400'}`}></div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-6 h-6 rounded-full border-2 border-gray-400 flex items-center justify-center bg-gray-100">
+                    <div className={`w-3 h-3 rounded-full transition-all duration-300 ${blinking && selected === c.id ? 'bg-red-600 animate-pulse shadow-[0_0_12px_rgba(220,38,38,1)]' : 'bg-gray-300'}`}></div>
+                </div>
+                <button 
+                  onClick={() => setSelected(c.id)}
+                  className={`w-10 h-8 rounded border-2 transition-all shadow-sm ${selected === c.id ? 'bg-red-600 border-red-800 scale-95 shadow-inner' : 'bg-blue-800 border-blue-950 hover:bg-blue-700 active:scale-95'}`}
+                  aria-label={`Vote for ${c.name}`}
+                />
               </div>
-              <button 
-                onClick={() => setSelected(c.id)}
-                className={`w-12 h-10 rounded-lg border-2 transition-all ${selected === c.id ? 'bg-red-600 border-red-800 scale-95 shadow-inner' : 'bg-blue-900 border-blue-950 hover:bg-blue-800'}`}
-              />
             </div>
           ))}
         </div>

@@ -8,7 +8,7 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [inkPoints, setInkPoints] = useState<number>(0);
-  const targetPoints = 100; // Slightly reduced for better mobile feel
+  const targetPoints = 40; // Reduced for faster completion
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,7 +22,7 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
     
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.lineWidth = 15;
+    ctx.lineWidth = 25; // Increased for faster coverage
     ctx.strokeStyle = '#1e1b4b'; 
   }, []);
 
@@ -73,7 +73,7 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
         setProgress(newProgress);
         if (newProgress >= 100 && !isDone) {
           setIsDone(true);
-          setTimeout(onComplete, 2000);
+          setTimeout(onComplete, 1200);
         }
         return next;
       });
@@ -104,8 +104,8 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
         <svg viewBox="0 0 300 400" className="absolute inset-0 w-full h-full pointer-events-none transition-all duration-700 group-hover:opacity-100">
           <defs>
             <radialGradient id="handGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="40%">
-              <stop offset="0%" stopColor="#374151" />
-              <stop offset="100%" stopColor="#111827" />
+              <stop offset="0%" stopColor="#6b7280" />
+              <stop offset="100%" stopColor="#374151" />
             </radialGradient>
             <filter id="handShadow">
               <feDropShadow dx="0" dy="4" stdDeviation="8" floodOpacity="0.5"/>
@@ -163,10 +163,10 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
             <motion.path 
               d="M110,210 C110,160 105,90 120,60 C135,30 155,30 165,60 C175,90 170,160 170,210" 
               fill="none"
-              stroke="#6366f1"
-              strokeWidth="3"
+              stroke="#818cf8"
+              strokeWidth="4"
               strokeDasharray="10 10"
-              animate={{ strokeDashoffset: [0, -40], opacity: [0.2, 0.6, 0.2] }}
+              animate={{ strokeDashoffset: [0, -40], opacity: [0.4, 0.8, 0.4] }}
               transition={{ 
                 strokeDashoffset: { repeat: Infinity, duration: 2, ease: "linear" },
                 opacity: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
@@ -225,13 +225,13 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
             className="absolute top-[18%] left-[40%] pointer-events-none z-20 flex flex-col items-center gap-3"
           >
             <div className="relative">
-              <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-40 animate-pulse"></div>
-              <div className="relative bg-indigo-600 p-2.5 rounded-2xl shadow-2xl border border-indigo-400/30 animate-bounce">
-                <Paintbrush size={22} className="text-white" />
+              <div className="absolute inset-0 bg-indigo-400 blur-2xl opacity-60 animate-pulse"></div>
+              <div className="relative bg-indigo-500 p-3 rounded-2xl shadow-2xl border border-indigo-300/50 animate-bounce">
+                <Paintbrush size={28} className="text-white" />
               </div>
             </div>
-            <div className="bg-black/40 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/5 shadow-2xl">
-              <span className="text-[9px] sm:text-[11px] text-white font-bold tracking-[0.15em] uppercase">
+            <div className="bg-indigo-600 px-5 py-2 rounded-full border border-indigo-400/30 shadow-2xl">
+              <span className="text-[10px] sm:text-[12px] text-white font-black tracking-[0.2em] uppercase">
                 Mark Finger
               </span>
             </div>

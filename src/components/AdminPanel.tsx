@@ -320,7 +320,15 @@ export const AdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {candidates.map(c => (
                   <div key={c.id} className="bg-gray-900 p-4 rounded-2xl border border-gray-800 flex items-center gap-4">
-                    <img src={c.logoUrl} alt={c.name} className="w-16 h-16 object-contain bg-white rounded-lg p-1" referrerPolicy="no-referrer" />
+                    <img 
+                      src={c.logoUrl} 
+                      alt={c.name} 
+                      className="w-16 h-16 object-contain bg-white rounded-lg p-1" 
+                      referrerPolicy="no-referrer" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=random&color=fff&size=128`;
+                      }}
+                    />
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{c.name}</h3>
                       <p className="text-gray-400 text-sm">Order: {c.order}</p>

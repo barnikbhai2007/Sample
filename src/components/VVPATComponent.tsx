@@ -34,6 +34,9 @@ export const VVPATComponent: React.FC<VVPATProps> = ({ candidateName, candidateL
             alt={candidateName} 
             className="w-24 h-24 object-contain mx-auto mb-4" 
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(candidateName)}&background=random&color=fff&size=256`;
+            }}
           />
           <div className="text-lg font-bold text-gray-900">{candidateName}</div>
           <div className="mt-4 pt-4 border-t border-dashed border-gray-300 text-[10px] text-gray-400">
