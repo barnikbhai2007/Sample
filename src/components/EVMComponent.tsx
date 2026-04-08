@@ -30,16 +30,25 @@ export const EVMComponent: React.FC<{onVote: (candidateId: string) => void}> = (
     if (selected === null) return;
     setBlinking(true);
     
-    // Beep sound
+    // Beep sound (EVM style)
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioCtx.createOscillator();
-    oscillator.connect(audioCtx.destination);
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime); // 1kHz
+    
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
     oscillator.start();
     setTimeout(() => {
       oscillator.stop();
       setBlinking(false);
       onVote(selected);
-    }, 2000);
+    }, 1500); // 1.5 second beep
   };
 
   if (loading) {

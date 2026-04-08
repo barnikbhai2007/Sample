@@ -8,6 +8,7 @@ import { VoterCard } from './VoterCard';
 import { TypingMessage } from './TypingMessage';
 import { EVMComponent } from './EVMComponent';
 import { FingerMarking } from './FingerMarking';
+import { VVPATComponent } from './VVPATComponent';
 
 export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([
@@ -16,11 +17,12 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
-  const [step, setStep] = useState<'name' | 'school' | 'login' | 'card' | 'finger-ask' | 'finger-marking' | 'evm' | 'reason' | 'complete'>('name');
+  const [step, setStep] = useState<'name' | 'school' | 'login' | 'card' | 'finger-ask' | 'finger-marking' | 'evm' | 'vvpat' | 'reason' | 'complete'>('name');
   const [userInfo, setUserInfo] = useState({name: '', school: ''});
   const [user, setUser] = useState<any>(null);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
+  const [candidateDetails, setCandidateDetails] = useState<{name: string, logo: string} | null>(null);
   const [voteReason, setVoteReason] = useState('');
   const [votingEnabled, setVotingEnabled] = useState<boolean | null>(null);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
@@ -105,9 +107,21 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }, 1500);
   };
 
-  const handleVote = (candidateId: string) => {
+  const handleVote = async (candidateId: string) => {
     setSelectedCandidate(candidateId);
-    triggerTransition('reason');
+    
+    // Fetch candidate details for VVPAT
+    try {
+      const candSnap = await getDoc(doc(db, 'candidates', candidateId));
+      if (candSnap.exists()) {
+        const data = candSnap.data();
+        setCandidateDetails({ name: data.name, logo: data.logoUrl });
+      }
+    } catch (err) {
+      console.error("Error fetching candidate for VVPAT:", err);
+    }
+    
+    triggerTransition('vvpat');
   };
 
   const submitVote = async () => {
@@ -247,6 +261,14 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
             {step === 'evm' && (
               <EVMComponent onVote={handleVote} />
+            )}
+
+            {step === 'vvpat' && candidateDetails && (
+              <VVPATComponent 
+                candidateName={candidateDetails.name} 
+                candidateLogo={candidateDetails.logo} 
+                onComplete={() => triggerTransition('reason')} 
+              />
             )}
 
             {step === 'reason' && (
