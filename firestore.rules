@@ -58,8 +58,8 @@ service cloud.firestore {
     function isValidVote(data) {
       return data.voterId is string && data.voterId == request.auth.uid &&
              data.candidateId is string && data.voterName is string &&
-             data.voterSchool is string && data.reason is string &&
-             data.reason.size() > 0 && data.reason.size() <= 1000 &&
+             data.voterSchool is string && 
+             (!('reason' in data) || (data.reason is string && data.reason.size() <= 1000)) &&
              data.timestamp is timestamp;
     }
 

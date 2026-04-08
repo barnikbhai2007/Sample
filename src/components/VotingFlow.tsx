@@ -111,20 +111,30 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   const submitVote = async () => {
-    if (!user || !selectedCandidate || !voteReason) return;
+    if (!user || !selectedCandidate) return;
     setLoading(true);
     try {
-      await setDoc(doc(db, 'votes', user.uid), {
+      const voteData = {
         voterId: user.uid,
         candidateId: selectedCandidate,
         voterName: userInfo.name,
         voterSchool: userInfo.school,
-        reason: voteReason,
+        reason: voteReason || '',
         timestamp: serverTimestamp()
-      });
+      };
+      
+      console.log('Submitting vote:', voteData);
+      await setDoc(doc(db, 'votes', user.uid), voteData);
       triggerTransition('complete');
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Vote submission error:', err);
+      let errorMessage = 'An error occurred while submitting your vote. Please try again.';
+      
+      if (err.message && err.message.includes('permission-denied')) {
+        errorMessage = 'Permission denied. Please ensure you are logged in correctly and haven\'t already voted.';
+      }
+      
+      setMessages(prev => [...prev, {role: 'assistant', text: errorMessage}]);
     } finally {
       setLoading(false);
     }
