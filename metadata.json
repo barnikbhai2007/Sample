@@ -1,0 +1,5 @@
+{
+  "name": "Voter Registration",
+  "description": "A simple registration panel using Google Sign-In for the upcoming election.",
+  "requestFramePermissions": []
+}
