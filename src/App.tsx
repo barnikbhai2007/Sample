@@ -65,7 +65,7 @@ export default function App() {
     (new URLSearchParams(window.location.search).get('page') as any) || 'home'
   );
 
-  const isAdmin = user?.email === 'barnikbhowmik2@gmail.com';
+  const isAdmin = user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com';
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -152,8 +152,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+        <p className="text-gray-500 text-sm animate-pulse">Initializing ChunabKeParva...</p>
       </div>
     );
   }

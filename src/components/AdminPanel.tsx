@@ -95,6 +95,7 @@ export const AdminPanel: React.FC = () => {
     try {
       setLoading(true);
       console.log('Starting reset process...');
+      console.log('Current Admin Email:', auth.currentUser?.email);
       
       const voteDocs = await getDocsFromServer(collection(db, 'votes'));
       console.log(`Found ${voteDocs.size} votes to delete.`);
@@ -103,6 +104,7 @@ export const AdminPanel: React.FC = () => {
       let count = 0;
       
       voteDocs.forEach(doc => {
+        console.log('Adding vote to batch delete:', doc.id);
         batch.delete(doc.ref);
         count++;
       });
@@ -110,6 +112,7 @@ export const AdminPanel: React.FC = () => {
       // Also delete published results if they exist
       batch.delete(doc(db, 'settings', 'results'));
       
+      console.log('Committing batch...');
       await batch.commit();
       console.log(`Successfully deleted ${count} votes and reset settings.`);
       alert(`Reset successful! Deleted ${count} votes.`);
@@ -126,12 +129,27 @@ export const AdminPanel: React.FC = () => {
     try {
       setLoading(true);
       console.log('Attempting to delete vote with ID:', docId);
+      console.log('Current Admin Email:', auth.currentUser?.email);
       await deleteDoc(doc(db, 'votes', docId));
       console.log('Vote deleted successfully from Firestore.');
       alert('Vote deleted successfully.');
     } catch (error) {
       console.error('Error deleting vote:', error);
       alert('Failed to delete vote: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    if (!window.confirm('Are you sure you want to delete this user registration? This will remove their voter card and profile.')) return;
+    try {
+      setLoading(true);
+      await deleteDoc(doc(db, 'users', uid));
+      alert('User registration deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user registration.');
     } finally {
       setLoading(false);
     }
@@ -389,6 +407,7 @@ export const AdminPanel: React.FC = () => {
                       <th className="px-6 py-4">School</th>
                       <th className="px-6 py-4">Email</th>
                       <th className="px-6 py-4">Registered At</th>
+                      <th className="px-6 py-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
@@ -399,6 +418,15 @@ export const AdminPanel: React.FC = () => {
                         <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
                         <td className="px-6 py-4 text-xs text-gray-500">
                           {u.registeredAt?.toDate().toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={() => handleDeleteUser(u.uid)}
+                            className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                            title="Delete Registration"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </td>
                       </tr>
                     ))}
