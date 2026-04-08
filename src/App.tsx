@@ -8,7 +8,13 @@ import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { motion } from 'motion/react';
-import { CheckCircle2, LogOut, Vote, ShieldCheck, Loader2, User as UserIcon, School } from 'lucide-react';
+import { CheckCircle2, LogOut, Loader2, ShieldCheck } from 'lucide-react';
+import { VoterCard } from './components/VoterCard';
+import { HomePage } from './components/HomePage';
+import { VotingFlow } from './components/VotingFlow';
+import { FingerMarking } from './components/FingerMarking';
+import { AdminPanel } from './components/AdminPanel';
+import { Results } from './components/Results';
 
 enum OperationType {
   CREATE = 'create',
@@ -55,12 +61,17 @@ export default function App() {
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', school: '', customSchool: '' });
+  const [page, setPage] = useState<'home' | 'register' | 'vote' | 'results' | 'finger-verification' | 'admin'>(
+    (new URLSearchParams(window.location.search).get('page') as any) || 'home'
+  );
+
+  const isAdmin = user?.email === 'barnikbhowmik2@gmail.com';
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        try {
+      try {
+        setUser(currentUser);
+        if (currentUser) {
           const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
           if (userSnap.exists()) {
             const data = userSnap.data();
@@ -68,11 +79,14 @@ export default function App() {
               setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '' });
             }
           }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, 'users/' + currentUser.uid);
+        } else {
+          setProfile(null);
         }
+      } catch (err) {
+        console.error("Auth state change error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -128,81 +142,136 @@ export default function App() {
       setRegistering(false);
     }
   };
-// ... rest of the file
 
   const handleSignOut = async () => {
     await signOut(auth);
     setUser(null);
     setProfile(null);
+    setPage('home');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     );
   }
 
+  if (page === 'home') {
+    return <HomePage onNavigate={setPage} isAdmin={isAdmin} profile={profile} user={user} />;
+  }
+
+  if (page === 'vote') {
+    return <VotingFlow onBack={() => setPage('home')} />;
+  }
+
+  if (page === 'results') {
+    return <Results onBack={() => setPage('home')} />;
+  }
+
+  if (page === 'admin') {
+    if (!isAdmin) {
+      setPage('home');
+      return null;
+    }
+    return (
+      <div className="relative">
+        <button 
+          onClick={() => setPage('home')}
+          className="fixed top-4 left-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-xl font-bold hover:bg-gray-700 transition-all"
+        >
+          ← Back
+        </button>
+        <AdminPanel />
+      </div>
+    );
+  }
+
+  if (page === 'finger-verification') {
+    return <FingerMarking onComplete={() => { window.close(); }} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100"
+        className="max-w-md w-full bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800"
       >
         {user ? (
           profile ? (
             <div className="p-8 text-center">
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <img src="https://res.cloudinary.com/speed-searches/image/upload/v1775643609/FINAL_20260408_154719_0000_nkldtb.png" alt="Logo" className="w-10 h-10 object-contain" />
+                <h1 className="text-xl font-bold text-white">ChunabKeParva v3.0</h1>
+              </div>
               <motion.div 
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", bounce: 0.5 }}
-                className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"
+                className="w-20 h-20 bg-green-900/30 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6"
               >
                 <CheckCircle2 className="w-10 h-10" />
               </motion.div>
               
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Complete!</h2>
-              <p className="text-gray-600 mb-8 leading-relaxed">
-                That's your registration done. Kindly vote on <strong className="text-indigo-600 font-semibold">16th March</strong>.
+              <h2 className="text-2xl font-bold text-white mb-2">Registration Complete!</h2>
+              <p className="text-gray-400 mb-8 leading-relaxed">
+                That's your registration done. Kindly vote on <strong className="text-indigo-400 font-semibold">16th March</strong>.
               </p>
 
-              <div className="bg-indigo-50 rounded-xl p-4 mb-8 text-left flex items-start gap-3">
-                <Vote className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-indigo-900">{profile.name}</p>
-                  <p className="text-sm text-indigo-700">{profile.school === 'others' ? profile.customSchool : profile.school}</p>
-                </div>
-              </div>
+              <VoterCard 
+                name={profile.name}
+                school={profile.school === 'others' ? profile.customSchool : profile.school}
+                photoURL={user.photoURL || 'https://ui-avatars.com/api/?name=' + profile.name}
+                voterId={`16042026-${user.uid.slice(0, 4).toUpperCase()}`}
+              />
 
-              <button 
-                onClick={handleSignOut}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center justify-center gap-2 mx-auto transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign out
-              </button>
+              <div className="flex flex-col gap-2 mt-8">
+                <button 
+                  onClick={() => setPage('home')}
+                  className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all"
+                >
+                  Back to Home
+                </button>
+                <button 
+                  onClick={handleSignOut}
+                  className="text-sm text-gray-500 hover:text-gray-300 flex items-center justify-center gap-2 mx-auto transition-colors py-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              </div>
             </div>
           ) : (
             <div className="p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Complete your profile</h2>
+              <button 
+                onClick={() => setPage('home')}
+                className="text-gray-400 hover:text-white mb-4 flex items-center gap-1 text-sm"
+              >
+                ← Back to Home
+              </button>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <img src="https://res.cloudinary.com/speed-searches/image/upload/v1775643609/FINAL_20260408_154719_0000_nkldtb.png" alt="Logo" className="w-10 h-10 object-contain" />
+                <h1 className="text-xl font-bold text-white">ChunabKeParva v3.0</h1>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-6">Complete your profile</h2>
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
                   <input 
                     required
                     type="text"
                     value={form.name}
                     onChange={e => setForm({...form, name: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">School</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">School</label>
                   <div className="space-y-2">
                     {SCHOOLS.map(s => (
-                      <label key={s} className="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                      <label key={s} className="flex items-center p-3 bg-gray-800 border border-gray-700 rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
                         <input
                           required
                           type="radio"
@@ -210,22 +279,22 @@ export default function App() {
                           value={s}
                           checked={form.school === s}
                           onChange={e => setForm({...form, school: e.target.value})}
-                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                          className="w-4 h-4 text-indigo-500 focus:ring-indigo-500"
                         />
-                        <span className="ml-3 text-sm text-gray-700">{s}</span>
+                        <span className="ml-3 text-sm text-gray-200">{s}</span>
                       </label>
                     ))}
                   </div>
                 </div>
                 {form.school === 'others' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mention School</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Mention School</label>
                     <input 
                       required
                       type="text"
                       value={form.customSchool}
                       onChange={e => setForm({...form, customSchool: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 )}
@@ -241,16 +310,22 @@ export default function App() {
           )
         ) : (
           <div className="p-8">
+            <button 
+              onClick={() => setPage('home')}
+              className="text-gray-400 hover:text-white mb-4 flex items-center gap-1 text-sm"
+            >
+              ← Back to Home
+            </button>
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3">
+              <div className="w-16 h-16 bg-indigo-900/30 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3">
                 <ShieldCheck className="w-8 h-8" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">Voter Registration</h1>
-              <p className="text-gray-500 mt-2">Register securely to participate in the upcoming election.</p>
+              <h1 className="text-2xl font-bold text-white">Voter Registration</h1>
+              <p className="text-gray-400 mt-2">Register securely to participate in the upcoming election.</p>
             </div>
 
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+              <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded-xl text-sm text-red-400">
                 {error}
               </div>
             )}
@@ -258,34 +333,22 @@ export default function App() {
             <button
               onClick={handleGoogleSignIn}
               disabled={registering}
-              className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 px-6 py-3.5 rounded-xl font-medium hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 px-6 py-3.5 rounded-xl font-medium hover:bg-gray-100 transition-all disabled:opacity-50"
             >
               {registering ? (
                 <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
               ) : (
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                 </svg>
               )}
               {registering ? 'Signing in...' : 'Sign in with Google'}
             </button>
 
-            <p className="text-center text-xs text-gray-400 mt-6">
+            <p className="text-center text-xs text-gray-500 mt-6">
               By registering, you confirm your eligibility to vote.
             </p>
           </div>

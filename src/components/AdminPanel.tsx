@@ -1,0 +1,467 @@
+import React, { useState, useEffect } from 'react';
+import { db, auth } from '../firebase';
+import { 
+  collection, onSnapshot, doc, setDoc, updateDoc, 
+  deleteDoc, query, orderBy, getDocs, writeBatch,
+  getDocsFromServer
+} from 'firebase/firestore';
+import { 
+  Users, Vote, Settings, Plus, Trash2, Play, 
+  Square, RefreshCw, Download, Trophy, UserCheck,
+  UserPlus, UploadCloud
+} from 'lucide-react';
+import { motion } from 'motion/react';
+
+interface Candidate {
+  id: string;
+  name: string;
+  logoUrl: string;
+  order: number;
+}
+
+interface VoteRecord {
+  id: string;
+  voterId: string;
+  candidateId: string;
+  voterName: string;
+  voterSchool: string;
+  reason: string;
+  timestamp: any;
+}
+
+interface RegisteredUser {
+  uid: string;
+  name: string;
+  school: string;
+  email: string;
+  registeredAt: any;
+}
+
+export const AdminPanel: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered'>('candidates');
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [votes, setVotes] = useState<VoteRecord[]>([]);
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [votingEnabled, setVotingEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
+
+  // Candidate Form State
+  const [newCandidate, setNewCandidate] = useState({ name: '', logoUrl: '', order: 1 });
+
+  useEffect(() => {
+    const unsubCandidates = onSnapshot(query(collection(db, 'candidates'), orderBy('order', 'asc')), (snap) => {
+      setCandidates(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Candidate)));
+    });
+
+    const unsubVotes = onSnapshot(collection(db, 'votes'), (snap) => {
+      setVotes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as VoteRecord & { id: string })));
+    });
+
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (doc) => {
+      if (doc.exists()) setVotingEnabled(doc.data().votingEnabled);
+    });
+
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+      setRegisteredUsers(snap.docs.map(doc => doc.data() as RegisteredUser));
+    });
+
+    setLoading(false);
+    return () => {
+      unsubCandidates();
+      unsubVotes();
+      unsubSettings();
+      unsubUsers();
+    };
+  }, []);
+
+  const handleAddCandidate = async () => {
+    if (!newCandidate.name || !newCandidate.logoUrl) return;
+    const id = doc(collection(db, 'candidates')).id;
+    await setDoc(doc(db, 'candidates', id), { ...newCandidate, id });
+    setNewCandidate({ name: '', logoUrl: '', order: candidates.length + 1 });
+  };
+
+  const handleDeleteCandidate = async (id: string) => {
+    await deleteDoc(doc(db, 'candidates', id));
+  };
+
+  const toggleVoting = async () => {
+    await setDoc(doc(db, 'settings', 'global'), { votingEnabled: !votingEnabled });
+  };
+
+  const resetVotes = async () => {
+    if (!window.confirm('Are you sure you want to reset all votes and published results? This cannot be undone.')) return;
+    try {
+      setLoading(true);
+      console.log('Starting reset process...');
+      
+      const voteDocs = await getDocsFromServer(collection(db, 'votes'));
+      console.log(`Found ${voteDocs.size} votes to delete.`);
+      
+      const batch = writeBatch(db);
+      let count = 0;
+      
+      voteDocs.forEach(doc => {
+        batch.delete(doc.ref);
+        count++;
+      });
+      
+      // Also delete published results if they exist
+      batch.delete(doc(db, 'settings', 'results'));
+      
+      await batch.commit();
+      console.log(`Successfully deleted ${count} votes and reset settings.`);
+      alert(`Reset successful! Deleted ${count} votes.`);
+    } catch (error) {
+      console.error('Error resetting votes:', error);
+      alert('Failed to reset votes: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteVote = async (docId: string) => {
+    if (!window.confirm('Are you sure you want to delete this vote? The user will be able to vote again.')) return;
+    try {
+      setLoading(true);
+      console.log('Attempting to delete vote with ID:', docId);
+      await deleteDoc(doc(db, 'votes', docId));
+      console.log('Vote deleted successfully from Firestore.');
+      alert('Vote deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting vote:', error);
+      alert('Failed to delete vote: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const publishResults = async () => {
+    setPublishing(true);
+    try {
+      const results = getResults().map(r => ({
+        id: r.id,
+        name: r.name,
+        count: r.count,
+        logoUrl: r.logoUrl
+      }));
+      
+      await setDoc(doc(db, 'settings', 'results'), {
+        publishedAt: new Date().toISOString(),
+        totalVotes: votes.length,
+        results: results
+      });
+      alert('Results published successfully!');
+    } catch (error) {
+      console.error('Error publishing results:', error);
+      alert('Failed to publish results.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const exportUsersToCSV = () => {
+    const headers = ['Name', 'School', 'Email', 'Registered At'];
+    const rows = registeredUsers.map(u => [
+      u.name || 'N/A',
+      u.school || 'N/A',
+      u.email,
+      u.registeredAt?.toDate().toLocaleString() || ''
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "registered_users.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Voter Name', 'School', 'Voted For', 'Reason', 'Timestamp'];
+    const rows = votes.map(v => [
+      v.voterName,
+      v.voterSchool,
+      candidates.find(c => c.id === v.candidateId)?.name || 'Unknown',
+      v.reason,
+      v.timestamp?.toDate().toLocaleString() || ''
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "voting_records.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getResults = () => {
+    const counts: Record<string, number> = {};
+    votes.forEach(v => {
+      counts[v.candidateId] = (counts[v.candidateId] || 0) + 1;
+    });
+    return candidates.map(c => ({
+      ...c,
+      count: counts[c.id] || 0
+    })).sort((a, b) => b.count - a.count);
+  };
+
+  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Loading Admin Panel...</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Settings className="text-indigo-500" /> Admin Dashboard
+            </h1>
+            <p className="text-gray-400">Manage candidates, voters, and results</p>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={toggleVoting}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${votingEnabled ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+            >
+              {votingEnabled ? <Square size={18} /> : <Play size={18} />}
+              {votingEnabled ? 'Stop Voting' : 'Start Voting'}
+            </button>
+            <button 
+              onClick={resetVotes}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl font-bold"
+            >
+              <RefreshCw size={18} /> Reset
+            </button>
+          </div>
+        </header>
+
+        <nav className="flex gap-4 mb-8 border-b border-gray-800">
+          <button 
+            onClick={() => setActiveTab('candidates')}
+            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'candidates' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+          >
+            Candidates
+          </button>
+          <button 
+            onClick={() => setActiveTab('voters')}
+            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'voters' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+          >
+            Voter Records
+          </button>
+          <button 
+            onClick={() => setActiveTab('registered')}
+            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'registered' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+          >
+            Registered Users
+          </button>
+          <button 
+            onClick={() => setActiveTab('results')}
+            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'results' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+          >
+            Results
+          </button>
+        </nav>
+
+        <main>
+          {activeTab === 'candidates' && (
+            <div className="space-y-8">
+              <section className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Add Candidate (Max 6)</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input 
+                    placeholder="Candidate Name"
+                    value={newCandidate.name}
+                    onChange={e => setNewCandidate({...newCandidate, name: e.target.value})}
+                    className="bg-gray-800 rounded-xl px-4 py-2 border border-gray-700 outline-none focus:border-indigo-500"
+                  />
+                  <input 
+                    placeholder="Logo URL"
+                    value={newCandidate.logoUrl}
+                    onChange={e => setNewCandidate({...newCandidate, logoUrl: e.target.value})}
+                    className="bg-gray-800 rounded-xl px-4 py-2 border border-gray-700 outline-none focus:border-indigo-500"
+                  />
+                  <button 
+                    onClick={handleAddCandidate}
+                    disabled={candidates.length >= 6}
+                    className="bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold disabled:opacity-50"
+                  >
+                    Add Candidate
+                  </button>
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {candidates.map(c => (
+                  <div key={c.id} className="bg-gray-900 p-4 rounded-2xl border border-gray-800 flex items-center gap-4">
+                    <img src={c.logoUrl} alt={c.name} className="w-16 h-16 object-contain bg-white rounded-lg p-1" referrerPolicy="no-referrer" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg">{c.name}</h3>
+                      <p className="text-gray-400 text-sm">Order: {c.order}</p>
+                    </div>
+                    <button onClick={() => handleDeleteCandidate(c.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'voters' && (
+            <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+              <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+                <h2 className="text-xl font-bold flex items-center gap-2"><UserCheck size={20} /> Voting Records</h2>
+                <button 
+                  onClick={exportToCSV}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
+                >
+                  <Download size={16} /> Export CSV
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                    <tr>
+                      <th className="px-6 py-4">Voter</th>
+                      <th className="px-6 py-4">School</th>
+                      <th className="px-6 py-4">Choice</th>
+                      <th className="px-6 py-4">Reason</th>
+                      <th className="px-6 py-4">Time</th>
+                      <th className="px-6 py-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {votes.map((v, i) => (
+                      <tr key={i} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 font-medium">{v.voterName}</td>
+                        <td className="px-6 py-4 text-gray-400">{v.voterSchool}</td>
+                        <td className="px-6 py-4">
+                          <span className="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded text-xs font-bold">
+                            {candidates.find(c => c.id === v.candidateId)?.name || 'Unknown'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{v.reason}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500">
+                          {v.timestamp?.toDate().toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={() => handleDeleteVote(v.id)}
+                            className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                            title="Delete Vote"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'registered' && (
+            <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+              <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+                <h2 className="text-xl font-bold flex items-center gap-2"><UserPlus size={20} /> Registered Users</h2>
+                <button 
+                  onClick={exportUsersToCSV}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
+                >
+                  <Download size={16} /> Export CSV
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                    <tr>
+                      <th className="px-6 py-4">Name</th>
+                      <th className="px-6 py-4">School</th>
+                      <th className="px-6 py-4">Email</th>
+                      <th className="px-6 py-4">Registered At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {registeredUsers.map((u, i) => (
+                      <tr key={i} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
+                        <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500">
+                          {u.registeredAt?.toDate().toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'results' && (
+            <div className="space-y-8">
+              <div className="flex justify-end">
+                <button 
+                  onClick={publishResults}
+                  disabled={publishing}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50"
+                >
+                  <UploadCloud size={20} />
+                  {publishing ? 'Publishing...' : 'Publish Results to Public'}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center">
+                  <Users className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm uppercase tracking-widest">Total Votes</p>
+                  <h3 className="text-4xl font-bold">{votes.length}</h3>
+                </div>
+                <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center col-span-2">
+                  <Trophy className="w-10 h-10 text-yellow-500 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm uppercase tracking-widest">Current Leader</p>
+                  <h3 className="text-4xl font-bold">
+                    {getResults()[0]?.name || 'No votes yet'}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
+                <h2 className="text-xl font-bold mb-6">Vote Distribution</h2>
+                <div className="space-y-6">
+                  {getResults().map((c, i) => (
+                    <div key={c.id} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{i + 1}. {c.name}</span>
+                          {i === 0 && votes.length > 0 && <Trophy size={16} className="text-yellow-500" />}
+                        </div>
+                        <span className="font-bold text-indigo-400">{c.count} votes</span>
+                      </div>
+                      <div className="w-full h-4 bg-gray-800 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(c.count / (votes.length || 1)) * 100}%` }}
+                          className="h-full bg-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+};

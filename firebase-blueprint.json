@@ -5,32 +5,67 @@
       "description": "A registered user.",
       "type": "object",
       "properties": {
-        "uid": {
-          "type": "string",
-          "description": "The user's Firebase Auth UID."
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "The user's email address."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name."
-        },
-        "registeredAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "When the user registered."
-        }
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "name": { "type": "string" },
+        "school": { "type": "string" },
+        "registeredAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "registeredAt"]
+    },
+    "Candidate": {
+      "title": "Candidate",
+      "description": "A candidate in the election.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "name", "logoUrl", "order"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "A cast vote.",
+      "type": "object",
+      "properties": {
+        "voterId": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "voterName": { "type": "string" },
+        "voterSchool": { "type": "string" },
+        "reason": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["voterId", "candidateId", "voterName", "voterSchool", "reason", "timestamp"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global app settings.",
+      "type": "object",
+      "properties": {
+        "votingEnabled": { "type": "boolean" }
+      },
+      "required": ["votingEnabled"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Stores registered users."
+    },
+    "/candidates/{candidateId}": {
+      "schema": { "$ref": "#/entities/Candidate" },
+      "description": "Stores election candidates."
+    },
+    "/votes/{voteId}": {
+      "schema": { "$ref": "#/entities/Vote" },
+      "description": "Stores cast votes."
+    },
+    "/settings/global": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Global voting settings."
     }
   }
 }
