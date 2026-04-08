@@ -91,9 +91,15 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       } else {
         setMessages(prev => [...prev, {role: 'assistant', text: 'Access denied. Your account is not registered in our voter database.'}]);
       }
-    } catch (err) {
-      console.error(err);
-      setMessages(prev => [...prev, {role: 'assistant', text: 'An error occurred during login. Please try again.'}]);
+    } catch (err: any) {
+      console.error('Login/Verification error:', err);
+      let errorMessage = 'An error occurred during login. Please try again.';
+      if (err.message && err.message.includes('permission-denied')) {
+        errorMessage = 'Permission denied while verifying your records. Please contact the administrator.';
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Login popup was closed. Please try again.';
+      }
+      setMessages(prev => [...prev, {role: 'assistant', text: errorMessage}]);
     } finally {
       setLoading(false);
     }

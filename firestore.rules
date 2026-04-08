@@ -77,7 +77,7 @@ service cloud.firestore {
     }
 
     match /votes/{voteId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isOwner(voteId);
       allow create: if isAuthenticated() && 
                     isValidVote(request.resource.data) &&
                     !exists(/databases/$(database)/documents/votes/$(request.auth.uid));
