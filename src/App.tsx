@@ -10,6 +10,36 @@ import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firest
 import { motion } from 'motion/react';
 import { CheckCircle2, LogOut, Vote, ShieldCheck, Loader2, User as UserIcon, School } from 'lucide-react';
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: any;
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 const SCHOOLS = [
   "Sudharnepur DPU Vidyachakra",
   "Raiganj Girls High School",
@@ -30,12 +60,16 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          if (data.name && data.school) {
-            setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '' });
+        try {
+          const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            if (data.name && data.school) {
+              setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '' });
+            }
           }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, 'users/' + currentUser.uid);
         }
       }
       setLoading(false);
@@ -55,12 +89,16 @@ export default function App() {
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || '',
-          registeredAt: serverTimestamp()
-        });
+        try {
+          await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || '',
+            registeredAt: serverTimestamp()
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, 'users/' + user.uid);
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -84,11 +122,13 @@ export default function App() {
       setProfile({ name: form.name, school: form.school, customSchool: form.customSchool });
     } catch (err: any) {
       console.error(err);
-      setError('Failed to save profile.');
+      setError('Failed to save profile: ' + (err instanceof Error ? err.message : String(err)));
+      handleFirestoreError(err, OperationType.UPDATE, 'users/' + user.uid);
     } finally {
       setRegistering(false);
     }
   };
+// ... rest of the file
 
   const handleSignOut = async () => {
     await signOut(auth);
