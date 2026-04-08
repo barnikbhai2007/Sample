@@ -3,22 +3,41 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { motion } from 'motion/react';
-import { CheckCircle2, LogOut, Vote, ShieldCheck, Loader2 } from 'lucide-react';
+import { CheckCircle2, LogOut, Vote, ShieldCheck, Loader2, User as UserIcon, School } from 'lucide-react';
+
+const SCHOOLS = [
+  "Sudharnepur DPU Vidyachakra",
+  "Raiganj Girls High School",
+  "Raiganj Coronation High School",
+  "Raignaj Ramkrishna School",
+  "others"
+];
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<{name: string, school: string, customSchool: string} | null>(null);
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', school: '', customSchool: '' });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.name && data.school) {
+            setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '' });
+          }
+        }
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -32,12 +51,10 @@ export default function App() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user document exists
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        // Register the user in Firestore
         await setDoc(userRef, {
           uid: user.uid,
           email: user.email,
@@ -53,8 +70,30 @@ export default function App() {
     }
   };
 
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setRegistering(true);
+    setError(null);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        name: form.name,
+        school: form.school,
+        customSchool: form.school === 'others' ? form.customSchool : ''
+      });
+      setProfile({ name: form.name, school: form.school, customSchool: form.customSchool });
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to save profile.');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut(auth);
+    setUser(null);
+    setProfile(null);
   };
 
   if (loading) {
@@ -73,37 +112,93 @@ export default function App() {
         className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100"
       >
         {user ? (
-          <div className="p-8 text-center">
-            <motion.div 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", bounce: 0.5 }}
-              className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"
-            >
-              <CheckCircle2 className="w-10 h-10" />
-            </motion.div>
-            
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Complete!</h2>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              That's your registration done. Kindly vote on <strong className="text-indigo-600 font-semibold">16th March</strong>.
-            </p>
+          profile ? (
+            <div className="p-8 text-center">
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", bounce: 0.5 }}
+                className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6"
+              >
+                <CheckCircle2 className="w-10 h-10" />
+              </motion.div>
+              
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Complete!</h2>
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                That's your registration done. Kindly vote on <strong className="text-indigo-600 font-semibold">16th March</strong>.
+              </p>
 
-            <div className="bg-indigo-50 rounded-xl p-4 mb-8 text-left flex items-start gap-3">
-              <Vote className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-indigo-900">Voter Details</p>
-                <p className="text-sm text-indigo-700 truncate">{user.email}</p>
+              <div className="bg-indigo-50 rounded-xl p-4 mb-8 text-left flex items-start gap-3">
+                <Vote className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-indigo-900">{profile.name}</p>
+                  <p className="text-sm text-indigo-700">{profile.school === 'others' ? profile.customSchool : profile.school}</p>
+                </div>
               </div>
-            </div>
 
-            <button 
-              onClick={handleSignOut}
-              className="text-sm text-gray-500 hover:text-gray-700 flex items-center justify-center gap-2 mx-auto transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign out
-            </button>
-          </div>
+              <button 
+                onClick={handleSignOut}
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center justify-center gap-2 mx-auto transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Complete your profile</h2>
+              <form onSubmit={handleProfileSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input 
+                    required
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm({...form, name: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">School</label>
+                  <div className="space-y-2">
+                    {SCHOOLS.map(s => (
+                      <label key={s} className="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          required
+                          type="radio"
+                          name="school"
+                          value={s}
+                          checked={form.school === s}
+                          onChange={e => setForm({...form, school: e.target.value})}
+                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="ml-3 text-sm text-gray-700">{s}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {form.school === 'others' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mention School</label>
+                    <input 
+                      required
+                      type="text"
+                      value={form.customSchool}
+                      onChange={e => setForm({...form, customSchool: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                )}
+                <button 
+                  disabled={registering}
+                  type="submit"
+                  className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-all disabled:opacity-50"
+                >
+                  {registering ? 'Saving...' : 'Complete Registration'}
+                </button>
+              </form>
+            </div>
+          )
         ) : (
           <div className="p-8">
             <div className="text-center mb-8">
@@ -147,7 +242,7 @@ export default function App() {
                   />
                 </svg>
               )}
-              {registering ? 'Registering...' : 'Register with Google'}
+              {registering ? 'Signing in...' : 'Sign in with Google'}
             </button>
 
             <p className="text-center text-xs text-gray-400 mt-6">
