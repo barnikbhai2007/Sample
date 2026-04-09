@@ -360,8 +360,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
           {activeTab === 'candidates' && (
             <div className="space-y-8">
               <section className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Add Candidate (Max 6)</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Add Candidate (Max 7)</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <input 
                     placeholder="Candidate Name"
                     value={newCandidate.name}
@@ -374,9 +374,16 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     onChange={e => setNewCandidate({...newCandidate, logoUrl: e.target.value})}
                     className="bg-gray-800 rounded-xl px-4 py-2 border border-gray-700 outline-none focus:border-indigo-500"
                   />
+                  <input 
+                    type="number"
+                    placeholder="Order"
+                    value={newCandidate.order}
+                    onChange={e => setNewCandidate({...newCandidate, order: parseInt(e.target.value) || 1})}
+                    className="bg-gray-800 rounded-xl px-4 py-2 border border-gray-700 outline-none focus:border-indigo-500"
+                  />
                   <button 
                     onClick={handleAddCandidate}
-                    disabled={candidates.length >= 6}
+                    disabled={candidates.length >= 7}
                     className="bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold disabled:opacity-50"
                   >
                     Add Candidate
@@ -425,6 +432,13 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                       value={editingCandidate.logoUrl}
                       onChange={e => setEditingCandidate({...editingCandidate, logoUrl: e.target.value})}
                       className="w-full bg-gray-800 rounded-xl px-4 py-2 mb-4 border border-gray-700 outline-none"
+                    />
+                    <input 
+                      type="number"
+                      value={editingCandidate.order}
+                      onChange={e => setEditingCandidate({...editingCandidate, order: parseInt(e.target.value) || 1})}
+                      className="w-full bg-gray-800 rounded-xl px-4 py-2 mb-4 border border-gray-700 outline-none"
+                      placeholder="Display Order"
                     />
                     <div className="flex gap-2">
                       <button onClick={() => setEditingCandidate(null)} className="flex-1 bg-gray-700 py-2 rounded-xl">Cancel</button>
