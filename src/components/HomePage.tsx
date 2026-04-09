@@ -5,7 +5,8 @@ import { VoterCard } from './VoterCard';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { VotingGuide } from './VotingGuide';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Bot } from 'lucide-react';
+import { AIChatbot } from './AIChatbot';
 
 interface HomePageProps {
   onNavigate: (page: 'register' | 'vote' | 'results' | 'admin') => void;
@@ -147,6 +148,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
           />
         )}
       </AnimatePresence>
+
+      {profile && <AIChatbot />}
+
       <div className="mt-auto py-8 text-center text-gray-600 text-sm">
         <p>Voting panel made by Barnik</p>
         {visitCount !== null && <p className="mt-1">Total visits: {visitCount}</p>}

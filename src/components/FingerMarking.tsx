@@ -24,6 +24,19 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
     ctx.lineCap = 'round';
     ctx.lineWidth = 25; // Increased for faster coverage
     ctx.strokeStyle = '#1e1b4b'; 
+
+    // Prevent scrolling on touch devices by adding non-passive listeners
+    const preventDefault = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
+
+    canvas.addEventListener('touchstart', preventDefault, { passive: false });
+    canvas.addEventListener('touchmove', preventDefault, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('touchstart', preventDefault);
+      canvas.removeEventListener('touchmove', preventDefault);
+    };
   }, []);
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
@@ -38,6 +51,11 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || isDone) return;
+    
+    // Prevent scrolling on touch devices
+    if ('touches' in e && e.cancelable) {
+      e.preventDefault();
+    }
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -93,7 +111,9 @@ export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }
         </div>
       </div>
       
-      <div className="relative w-full max-w-[280px] aspect-[3/4] flex items-center justify-center mb-8 bg-gradient-to-b from-gray-900 to-black rounded-[2.5rem] border border-gray-800 shadow-[0_0_40px_rgba(0,0,0,0.5),inset_0_2px_20px_rgba(0,0,0,0.8)] overflow-hidden cursor-crosshair group">
+      <div 
+        className="relative w-full max-w-[280px] aspect-[3/4] flex items-center justify-center mb-8 bg-gradient-to-b from-gray-900 to-black rounded-[2.5rem] border border-gray-800 shadow-[0_0_40px_rgba(0,0,0,0.5),inset_0_2px_20px_rgba(0,0,0,0.8)] overflow-hidden cursor-crosshair group touch-none"
+      >
         {/* Border Glow */}
         <div className="absolute inset-0 rounded-[2.5rem] border border-indigo-500/10 pointer-events-none"></div>
         

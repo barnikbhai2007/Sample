@@ -48,10 +48,10 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 const SCHOOLS = [
-  "Sudharnepur DPU Vidyachakra",
-  "Raiganj Girls High School",
+  "Sudarshanpur DPU Vidyachakra",
   "Raiganj Coronation High School",
-  "Raignaj Ramkrishna School",
+  "Raiganj Girls High School",
+  "Raiganj Sri Sri Ramkrishna Vidyabhaban",
   "others"
 ];
 
