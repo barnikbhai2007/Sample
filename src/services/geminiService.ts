@@ -4,13 +4,16 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAIInstance() {
   if (!aiInstance) {
-    // Use a safe way to access process.env that won't throw if process is undefined
-    const apiKey = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined;
+    const apiKey = process.env.GEMINI_API_KEY;
     
-    // Check for various ways an API key might be missing or invalidly stringified
     if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "") {
+      console.error("AI Configuration Error: GEMINI_API_KEY is missing or empty.");
       throw new Error("GEMINI_API_KEY is not defined. Please set it in your environment variables via the Secrets panel.");
     }
+    
+    // Log masked key for debugging (first 4 chars)
+    console.log(`AI Initializing with key: ${apiKey.substring(0, 4)}...`);
+    
     aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
