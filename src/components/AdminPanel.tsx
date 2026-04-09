@@ -8,7 +8,7 @@ import {
 import { 
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
-  UserPlus, UploadCloud, BarChart3
+  UserPlus, UploadCloud, BarChart3, ShieldCheck
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -37,7 +37,7 @@ interface RegisteredUser {
   registeredAt: any;
 }
 
-export const AdminPanel: React.FC = () => {
+export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency }) => {
   const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered'>('candidates');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
@@ -259,6 +259,29 @@ export const AdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
+        {isEmergency && (
+          <div className="mb-6 p-4 bg-amber-900/20 border border-amber-800 rounded-2xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-amber-400">
+              <ShieldCheck size={24} />
+              <div>
+                <p className="font-bold">Emergency Admin Bypass Active</p>
+                <p className="text-sm opacity-80">You are using a secret backdoor to access this panel. Backend writes are enabled via a temporary bypass document.</p>
+              </div>
+            </div>
+            <button 
+              onClick={async () => {
+                if (window.confirm('Deactivate emergency bypass? You will lose write access until you use the backdoor again.')) {
+                  await deleteDoc(doc(db, 'admin_bypass', 'brokenaqua_2000_7'));
+                  window.location.reload();
+                }
+              }}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-sm transition-all"
+            >
+              Deactivate Bypass
+            </button>
+          </div>
+        )}
+
         <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">

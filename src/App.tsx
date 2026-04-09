@@ -72,11 +72,21 @@ export default function App() {
 
   const isAdmin = (user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') || isEmergencyAdmin;
 
-  const handleEmergencyLogin = () => {
+  const handleEmergencyLogin = async () => {
     if (adminSecret === 'brokenaqua@2000#7') {
-      setIsEmergencyAdmin(true);
-      setShowAdminModal(false);
-      setPage('home');
+      try {
+        // Create the bypass document to allow Firestore writes even if unauthenticated
+        await setDoc(doc(db, 'admin_bypass', 'brokenaqua_2000_7'), {
+          active: true,
+          timestamp: serverTimestamp()
+        });
+        setIsEmergencyAdmin(true);
+        setShowAdminModal(false);
+        setPage('home');
+      } catch (err) {
+        console.error('Failed to create admin bypass:', err);
+        setError('Secret correct, but failed to activate backend access. Check console.');
+      }
     } else {
       setError('Invalid Admin Secret');
       setShowAdminModal(false);
@@ -244,7 +254,7 @@ export default function App() {
           >
             ← Back
           </button>
-          <AdminPanel />
+          <AdminPanel isEmergency={isEmergencyAdmin} />
         </div>
       );
     }
