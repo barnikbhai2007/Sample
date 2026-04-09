@@ -55,7 +55,7 @@ export const Chatbot: React.FC = () => {
                 <div className="bg-yellow-500 text-indigo-950 p-1 rounded-full">
                   <User size={14} />
                 </div>
-                Polling Officer
+                Presiding Officer Yuvraj
               </h3>
               <button onClick={() => setIsOpen(false)} className="text-indigo-300 hover:text-white"><X size={18} /></button>
             </div>

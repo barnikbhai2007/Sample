@@ -45,9 +45,11 @@
       "description": "Global app settings.",
       "type": "object",
       "properties": {
-        "votingEnabled": { "type": "boolean" }
+        "votingEnabled": { "type": "boolean" },
+        "registrationEnabled": { "type": "boolean" },
+        "resultsEnabled": { "type": "boolean" }
       },
-      "required": ["votingEnabled"]
+      "required": ["votingEnabled", "registrationEnabled", "resultsEnabled"]
     },
     "Stats": {
       "title": "Stats",

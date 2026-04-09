@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment, onSnapshot } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { CheckCircle2, LogOut, Loader2, ShieldCheck } from 'lucide-react';
 import { VoterCard } from './components/VoterCard';
@@ -58,6 +58,7 @@ const SCHOOLS = [
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState({ registrationEnabled: true, votingEnabled: true, resultsEnabled: true });
   const [profile, setProfile] = useState<{name: string, school: string, customSchool: string} | null>(null);
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +110,20 @@ export default function App() {
       }
     };
     incrementVisits();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'global'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setSettings({
+          registrationEnabled: data.registrationEnabled ?? true,
+          votingEnabled: data.votingEnabled ?? true,
+          resultsEnabled: data.resultsEnabled ?? true,
+        });
+      }
+    });
+    return () => unsub();
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -184,10 +199,18 @@ export default function App() {
   }
 
   if (page === 'vote') {
+    if (!settings.votingEnabled && !isAdmin) {
+      setPage('home');
+      return null;
+    }
     return <VotingFlow onBack={() => setPage('home')} />;
   }
 
   if (page === 'results') {
+    if (!settings.resultsEnabled && !isAdmin) {
+      setPage('home');
+      return null;
+    }
     return <Results onBack={() => setPage('home')} />;
   }
 
@@ -264,6 +287,26 @@ export default function App() {
                   Sign out
                 </button>
               </div>
+            </div>
+          ) : !settings.registrationEnabled && !isAdmin ? (
+            <div className="p-8 text-center">
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <img src="https://res.cloudinary.com/speed-searches/image/upload/v1775643609/FINAL_20260408_154719_0000_nkldtb.png" alt="Logo" className="w-10 h-10 object-contain" />
+                <h1 className="text-xl font-bold text-white">ChunabKeParva v3.0</h1>
+              </div>
+              <div className="w-20 h-20 bg-red-900/30 text-red-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                <ShieldCheck className="w-10 h-10" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Registration Closed</h2>
+              <p className="text-gray-400 mb-8 leading-relaxed">
+                Registration for the election is currently closed by the administrator.
+              </p>
+              <button 
+                onClick={() => setPage('home')}
+                className="w-full bg-gray-800 text-white py-3 rounded-xl font-bold hover:bg-gray-700 transition-all"
+              >
+                Back to Home
+              </button>
             </div>
           ) : (
             <div className="p-8">

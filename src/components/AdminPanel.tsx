@@ -8,7 +8,7 @@ import {
 import { 
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
-  UserPlus, UploadCloud
+  UserPlus, UploadCloud, BarChart3
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -43,6 +43,8 @@ export const AdminPanel: React.FC = () => {
   const [votes, setVotes] = useState<VoteRecord[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [votingEnabled, setVotingEnabled] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [resultsEnabled, setResultsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
 
@@ -65,7 +67,12 @@ export const AdminPanel: React.FC = () => {
     });
 
     const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (doc) => {
-      if (doc.exists()) setVotingEnabled(doc.data().votingEnabled);
+      if (doc.exists()) {
+        const data = doc.data();
+        setVotingEnabled(data.votingEnabled ?? false);
+        setRegistrationEnabled(data.registrationEnabled ?? true);
+        setResultsEnabled(data.resultsEnabled ?? true);
+      }
     });
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
@@ -93,7 +100,15 @@ export const AdminPanel: React.FC = () => {
   };
 
   const toggleVoting = async () => {
-    await setDoc(doc(db, 'settings', 'global'), { votingEnabled: !votingEnabled });
+    await updateDoc(doc(db, 'settings', 'global'), { votingEnabled: !votingEnabled });
+  };
+
+  const toggleRegistration = async () => {
+    await updateDoc(doc(db, 'settings', 'global'), { registrationEnabled: !registrationEnabled });
+  };
+
+  const toggleResults = async () => {
+    await updateDoc(doc(db, 'settings', 'global'), { resultsEnabled: !resultsEnabled });
   };
 
   const resetVotes = async () => {
@@ -251,13 +266,28 @@ export const AdminPanel: React.FC = () => {
             </h1>
             <p className="text-gray-400">Manage candidates, voters, and results</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={toggleRegistration}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${registrationEnabled ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-700'}`}
+              title="Toggle Registration Feature"
+            >
+              {registrationEnabled ? <UserPlus size={18} /> : <UserPlus size={18} className="opacity-50" />}
+              Reg: {registrationEnabled ? 'ON' : 'OFF'}
+            </button>
             <button 
               onClick={toggleVoting}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${votingEnabled ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
             >
               {votingEnabled ? <Square size={18} /> : <Play size={18} />}
-              {votingEnabled ? 'Stop Voting' : 'Start Voting'}
+              Vote: {votingEnabled ? 'ON' : 'OFF'}
+            </button>
+            <button 
+              onClick={toggleResults}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${resultsEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-700'}`}
+            >
+              <BarChart3 size={18} />
+              Results: {resultsEnabled ? 'ON' : 'OFF'}
             </button>
             <button 
               onClick={resetVotes}
