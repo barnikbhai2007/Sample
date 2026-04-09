@@ -39,8 +39,19 @@ export const AIChatbot: React.FC = () => {
       if (response) {
         setMessages(prev => [...prev, { role: 'model', text: response }]);
       }
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: 'Sorry, I encountered an error. Please try again later.' }]);
+    } catch (error: any) {
+      console.error("Chat Error:", error);
+      let errorText = 'Sorry, I encountered an error. Please try again later.';
+      
+      if (error?.message?.includes('GEMINI_API_KEY')) {
+        errorText = 'AI is not configured. Please add your GEMINI_API_KEY in the Secrets panel.';
+      } else if (error?.message?.includes('API key not valid')) {
+        errorText = 'The provided API key is invalid. Please check your Gemini API key.';
+      } else if (error?.message?.includes('quota')) {
+        errorText = 'AI quota exceeded. Please try again in a few minutes.';
+      }
+      
+      setMessages(prev => [...prev, { role: 'model', text: errorText }]);
     } finally {
       setIsLoading(false);
     }

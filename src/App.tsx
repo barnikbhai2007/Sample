@@ -286,7 +286,7 @@ export default function App() {
                 
                 <h2 className="text-2xl font-bold text-white mb-2">Registration Complete!</h2>
                 <p className="text-gray-400 mb-8 leading-relaxed">
-                  That's your registration done. Kindly vote on <strong className="text-indigo-400 font-semibold">16th March</strong>.
+                  That's your registration done. Kindly vote on <strong className="text-indigo-400 font-semibold">16th April</strong>.
                 </p>
 
                 <VoterCard 
