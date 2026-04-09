@@ -196,6 +196,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       await setDoc(doc(db, 'settings', 'results'), {
         publishedAt: new Date().toISOString(),
         totalVotes: votes.length,
+        totalRegistered: registeredUsers.length,
         results: results
       });
       alert('Results published successfully!');

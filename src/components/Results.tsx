@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Trophy, Users, Clock } from 'lucide-react';
+import { Trophy, Users, Clock, Vote } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface PublishedResult {
@@ -14,6 +14,7 @@ interface PublishedResult {
 interface PublishedData {
   publishedAt: string;
   totalVotes: number;
+  totalRegistered: number;
   results: PublishedResult[];
 }
 
@@ -62,9 +63,14 @@ export const Results: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center">
             <Users className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm uppercase tracking-widest">Total Registered</p>
+            <h3 className="text-4xl font-bold">{data.totalRegistered}</h3>
+          </div>
+          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center">
+            <Vote className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
             <p className="text-gray-400 text-sm uppercase tracking-widest">Total Votes Cast</p>
             <h3 className="text-4xl font-bold">{data.totalVotes}</h3>
           </div>
