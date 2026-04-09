@@ -46,8 +46,14 @@ export const AdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
 
-  // Candidate Form State
+  const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [newCandidate, setNewCandidate] = useState({ name: '', logoUrl: '', order: 1 });
+
+  const handleEditCandidate = async () => {
+    if (!editingCandidate) return;
+    await updateDoc(doc(db, 'candidates', editingCandidate.id), editingCandidate);
+    setEditingCandidate(null);
+  };
 
   useEffect(() => {
     const unsubCandidates = onSnapshot(query(collection(db, 'candidates'), orderBy('order', 'asc')), (snap) => {
@@ -318,7 +324,7 @@ export const AdminPanel: React.FC = () => {
               </section>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {candidates.map(c => (
+                {candidates.map((c, index) => (
                   <div key={c.id} className="bg-gray-900 p-4 rounded-2xl border border-gray-800 flex items-center gap-4">
                     <img 
                       src={c.logoUrl} 
@@ -331,14 +337,41 @@ export const AdminPanel: React.FC = () => {
                     />
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{c.name}</h3>
-                      <p className="text-gray-400 text-sm">Order: {c.order}</p>
+                      <p className="text-gray-400 text-sm">Position: {index + 1}</p>
                     </div>
-                    <button onClick={() => handleDeleteCandidate(c.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg">
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingCandidate(c)} className="text-indigo-500 hover:bg-indigo-500/10 p-2 rounded-lg">
+                        <Settings size={20} />
+                      </button>
+                      <button onClick={() => handleDeleteCandidate(c.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg">
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
+              
+              {editingCandidate && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 w-full max-w-md">
+                    <h2 className="text-xl font-bold mb-4">Edit Candidate</h2>
+                    <input 
+                      value={editingCandidate.name}
+                      onChange={e => setEditingCandidate({...editingCandidate, name: e.target.value})}
+                      className="w-full bg-gray-800 rounded-xl px-4 py-2 mb-4 border border-gray-700 outline-none"
+                    />
+                    <input 
+                      value={editingCandidate.logoUrl}
+                      onChange={e => setEditingCandidate({...editingCandidate, logoUrl: e.target.value})}
+                      className="w-full bg-gray-800 rounded-xl px-4 py-2 mb-4 border border-gray-700 outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingCandidate(null)} className="flex-1 bg-gray-700 py-2 rounded-xl">Cancel</button>
+                      <button onClick={handleEditCandidate} className="flex-1 bg-indigo-600 py-2 rounded-xl">Save</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

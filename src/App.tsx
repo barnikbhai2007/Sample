@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { CheckCircle2, LogOut, Loader2, ShieldCheck } from 'lucide-react';
 import { VoterCard } from './components/VoterCard';
@@ -15,6 +15,7 @@ import { VotingFlow } from './components/VotingFlow';
 import { FingerMarking } from './components/FingerMarking';
 import { AdminPanel } from './components/AdminPanel';
 import { Results } from './components/Results';
+import { Chatbot } from './components/Chatbot';
 
 enum OperationType {
   CREATE = 'create',
@@ -89,6 +90,25 @@ export default function App() {
       }
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('visited')) return;
+    const incrementVisits = async () => {
+      try {
+        const statsRef = doc(db, 'stats', 'global');
+        const statsSnap = await getDoc(statsRef);
+        if (statsSnap.exists()) {
+          await updateDoc(statsRef, { visitCount: increment(1) });
+        } else {
+          await setDoc(statsRef, { visitCount: 1 });
+        }
+        sessionStorage.setItem('visited', 'true');
+      } catch (err) {
+        console.error("Failed to increment visits:", err);
+      }
+    };
+    incrementVisits();
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -195,6 +215,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-4">
+      <Chatbot />
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

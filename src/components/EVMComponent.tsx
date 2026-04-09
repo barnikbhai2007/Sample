@@ -70,9 +70,9 @@ export const EVMComponent: React.FC<{onVote: (candidateId: string) => void}> = (
           <span className="text-sm font-bold text-gray-700">Ballot Unit</span>
         </div>
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-          {candidates.map((c) => (
+          {candidates.map((c, index) => (
             <div key={c.id} className="flex items-center gap-2 bg-white p-1.5 rounded border border-gray-300 shadow-sm">
-              <span className="w-5 font-bold text-gray-800 text-xs text-center">{c.order}</span>
+              <span className="w-5 font-bold text-gray-800 text-xs text-center">{index + 1}</span>
               <div className="flex-1 min-h-[3.5rem] bg-gray-50 border border-gray-300 rounded flex items-center px-3 gap-3">
                 <div className="flex-1">
                   <p className="text-xs sm:text-sm font-black text-gray-900 leading-tight uppercase break-words">

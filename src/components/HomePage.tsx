@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPlus, Vote, BarChart3, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 import { VoterCard } from './VoterCard';
+import { db } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface HomePageProps {
   onNavigate: (page: 'register' | 'vote' | 'results' | 'admin') => void;
@@ -11,6 +13,17 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile, user }) => {
+  const [visitCount, setVisitCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'stats', 'global'), (snap) => {
+      if (snap.exists()) {
+        setVisitCount(snap.data().visitCount);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   const options = [
     { id: 'register', label: 'Register', icon: UserPlus, color: 'from-blue-500 to-blue-700' },
     { id: 'vote', label: 'Vote', icon: Vote, color: 'from-indigo-500 to-indigo-700' },
@@ -63,6 +76,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
           <Settings size={18} /> Admin Panel
         </motion.button>
       )}
+      <div className="mt-auto py-8 text-center text-gray-600 text-sm">
+        <p>Voting panel made by Barnik</p>
+        {visitCount !== null && <p className="mt-1">Total visits: {visitCount}</p>}
+      </div>
     </div>
   );
 };

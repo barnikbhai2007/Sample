@@ -48,6 +48,15 @@
         "votingEnabled": { "type": "boolean" }
       },
       "required": ["votingEnabled"]
+    },
+    "Stats": {
+      "title": "Stats",
+      "description": "Global app statistics.",
+      "type": "object",
+      "properties": {
+        "visitCount": { "type": "number" }
+      },
+      "required": ["visitCount"]
     }
   },
   "firestore": {
@@ -66,6 +75,10 @@
     "/settings/global": {
       "schema": { "$ref": "#/entities/Settings" },
       "description": "Global voting settings."
+    },
+    "/stats/global": {
+      "schema": { "$ref": "#/entities/Stats" },
+      "description": "Global app statistics."
     }
   }
 }
