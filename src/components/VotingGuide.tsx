@@ -68,7 +68,7 @@ const STEPS: Step[] = [
   }
 ];
 
-export const VotingGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const VotingGuide: React.FC<{ onClose: () => void, onSecretClick?: () => void }> = ({ onClose, onSecretClick }) => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const next = () => currentStep < STEPS.length - 1 && setCurrentStep(s => s + 1);
@@ -91,7 +91,12 @@ export const VotingGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">Voting Guide</h3>
-              <p className="text-gray-500 text-xs uppercase tracking-widest">Step {currentStep + 1} of {STEPS.length}</p>
+              <p 
+                onClick={() => onSecretClick?.()}
+                className="text-gray-500 text-xs uppercase tracking-widest cursor-pointer hover:text-gray-400 transition-colors"
+              >
+                Step {currentStep + 1} of {STEPS.length}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">

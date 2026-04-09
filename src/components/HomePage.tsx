@@ -12,9 +12,10 @@ interface HomePageProps {
   isAdmin?: boolean;
   profile?: { name: string, school: string } | null;
   user?: any;
+  onSecretClick?: () => void;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile, user }) => {
+export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile, user, onSecretClick }) => {
   const [visitCount, setVisitCount] = useState<number | null>(null);
   const [settings, setSettings] = useState({ registrationEnabled: true, votingEnabled: true, resultsEnabled: true });
   const [showGuide, setShowGuide] = useState(false);
@@ -113,7 +114,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
       </div>
 
       <AnimatePresence>
-        {showGuide && <VotingGuide onClose={() => setShowGuide(false)} />}
+        {showGuide && <VotingGuide onClose={() => setShowGuide(false)} onSecretClick={onSecretClick} />}
       </AnimatePresence>
       <div className="mt-auto py-8 text-center text-gray-600 text-sm">
         <p>Voting panel made by Barnik</p>
