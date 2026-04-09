@@ -35,6 +35,7 @@ interface RegisteredUser {
   school: string;
   email: string;
   registeredAt: any;
+  voterId?: string;
 }
 
 export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency }) => {
@@ -532,6 +533,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                   <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                     <tr>
                       <th className="px-6 py-4">Name</th>
+                      <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
                       <th className="px-6 py-4">Email</th>
                       <th className="px-6 py-4">Registered At</th>
@@ -542,6 +544,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     {registeredUsers.map((u, i) => (
                       <tr key={i} className="hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
+                        <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
                         <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
                         <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
                         <td className="px-6 py-4 text-xs text-gray-500">
