@@ -263,7 +263,6 @@ export default function App() {
   } else {
     content = (
       <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-4">
-        <Chatbot />
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

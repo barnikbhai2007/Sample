@@ -12,7 +12,7 @@ import { VVPATComponent } from './VVPATComponent';
 
 export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([
-    {role: 'assistant', text: 'Hello, I am your Polling Officer. Please provide your Name to start.'}
+    {role: 'assistant', text: 'Hello, I am Presiding Officer Yuvraj. Please provide your Name to start.'}
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -196,16 +196,43 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           >
             {(step === 'name' || step === 'school' || step === 'login' || step === 'card' || step === 'finger-ask') && (
               <div className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 flex flex-col h-[80vh]">
-                <div className="p-4 border-b border-gray-800 font-bold text-white flex items-center gap-2">
-                  <Vote className="w-5 h-5 text-indigo-500" /> Polling Officer
+                <div className="p-4 border-b border-gray-800 font-bold text-white flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-indigo-500 shrink-0">
+                    <img 
+                      src="https://res.cloudinary.com/speed-searches/image/upload/w_1000,c_fill,ar_1:1,g_auto,r_max,bo_5px_solid_red,b_rgb:262c35/v1775748565/IMG-20260409-WA0024_aznvrb.jpg" 
+                      alt="Officer" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm">Presiding Officer</span>
+                    <span className="text-xs text-indigo-400">Yuvraj</span>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {messages.map((m, i) => (
-                    <div key={i} className={`p-3 rounded-xl ${m.role === 'user' ? 'bg-indigo-600 ml-auto' : 'bg-gray-800'}`}>
-                      {m.role === 'assistant' ? <TypingMessage text={m.text} /> : m.text}
+                    <div key={i} className={`flex items-end gap-2 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-700 shrink-0">
+                        <img 
+                          src={m.role === 'assistant' 
+                            ? "https://res.cloudinary.com/speed-searches/image/upload/w_1000,c_fill,ar_1:1,g_auto,r_max,bo_5px_solid_red,b_rgb:262c35/v1775748565/IMG-20260409-WA0024_aznvrb.jpg"
+                            : (auth.currentUser?.photoURL || `https://ui-avatars.com/api/?name=${userInfo.name || 'User'}&background=indigo&color=fff`)
+                          } 
+                          alt="Avatar" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className={`p-3 rounded-2xl max-w-[80%] ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-200'}`}>
+                        {m.role === 'assistant' ? <TypingMessage text={m.text} /> : m.text}
+                      </div>
                     </div>
                   ))}
-                  {loading && <Loader2 className="animate-spin text-indigo-500" />}
+                  {loading && (
+                    <div className="flex items-center gap-2 text-indigo-500 text-sm italic">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Yuvraj is typing...</span>
+                    </div>
+                  )}
                   <div ref={chatEndRef} />
                 </div>
                 

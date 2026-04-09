@@ -19,6 +19,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
   const [visitCount, setVisitCount] = useState<number | null>(null);
   const [settings, setSettings] = useState({ registrationEnabled: true, votingEnabled: true, resultsEnabled: true });
   const [showGuide, setShowGuide] = useState(false);
+  const [guideSource, setGuideSource] = useState<'button' | 'vote' | null>(null);
 
   useEffect(() => {
     const unsubStats = onSnapshot(doc(db, 'stats', 'global'), (snap) => {
@@ -50,6 +51,27 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
     { id: 'results', label: 'Live Results', icon: BarChart3, color: 'from-emerald-500 to-emerald-700', enabled: settings.resultsEnabled },
   ] as const;
 
+  const handleOptionClick = (id: 'register' | 'vote' | 'results') => {
+    if (id === 'vote') {
+      setGuideSource('vote');
+      setShowGuide(true);
+    } else {
+      onNavigate(id);
+    }
+  };
+
+  const handleGuideClose = () => {
+    setShowGuide(false);
+    setGuideSource(null);
+  };
+
+  const handleGuideFinish = () => {
+    if (guideSource === 'vote') {
+      onNavigate('vote');
+    }
+    handleGuideClose();
+  };
+
   const visibleOptions = options.filter(o => o.enabled || isAdmin);
 
   return (
@@ -78,7 +100,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            onClick={() => onNavigate(option.id)}
+            onClick={() => handleOptionClick(option.id)}
             className={`group relative overflow-hidden rounded-2xl p-6 h-32 flex flex-row items-center justify-start gap-4 bg-gradient-to-br ${option.color} transition-all hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 ${!option.enabled && isAdmin ? 'opacity-50 grayscale-[0.5]' : ''}`}
           >
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -106,7 +128,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          onClick={() => setShowGuide(true)}
+          onClick={() => {
+            setGuideSource('button');
+            setShowGuide(true);
+          }}
           className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 transition-colors font-bold bg-indigo-500/10 px-6 py-2 rounded-full border border-indigo-500/20"
         >
           <HelpCircle size={18} /> How to Vote?
@@ -114,7 +139,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
       </div>
 
       <AnimatePresence>
-        {showGuide && <VotingGuide onClose={() => setShowGuide(false)} onSecretClick={onSecretClick} />}
+        {showGuide && (
+          <VotingGuide 
+            onClose={handleGuideClose} 
+            onFinish={handleGuideFinish}
+            onSecretClick={onSecretClick} 
+          />
+        )}
       </AnimatePresence>
       <div className="mt-auto py-8 text-center text-gray-600 text-sm">
         <p>Voting panel made by Barnik</p>

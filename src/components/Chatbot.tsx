@@ -51,12 +51,19 @@ export const Chatbot: React.FC = () => {
             className="fixed bottom-24 right-6 w-80 bg-gray-900 border-4 border-gray-700 rounded-3xl shadow-2xl z-50 overflow-hidden"
           >
             <div className="bg-indigo-950 p-4 flex justify-between items-center border-b-4 border-indigo-900">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <div className="bg-yellow-500 text-indigo-950 p-1 rounded-full">
-                  <User size={14} />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-indigo-500">
+                  <img 
+                    src="https://res.cloudinary.com/speed-searches/image/upload/w_1000,c_fill,ar_1:1,g_auto,r_max,bo_5px_solid_red,b_rgb:262c35/v1775748565/IMG-20260409-WA0024_aznvrb.jpg" 
+                    alt="Officer" 
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                Presiding Officer Yuvraj
-              </h3>
+                <div>
+                  <h3 className="font-bold text-white text-sm">Presiding Officer</h3>
+                  <p className="text-xs text-indigo-400 font-bold">Yuvraj</p>
+                </div>
+              </div>
               <button onClick={() => setIsOpen(false)} className="text-indigo-300 hover:text-white"><X size={18} /></button>
             </div>
             

@@ -68,11 +68,19 @@ const STEPS: Step[] = [
   }
 ];
 
-export const VotingGuide: React.FC<{ onClose: () => void, onSecretClick?: () => void }> = ({ onClose, onSecretClick }) => {
+export const VotingGuide: React.FC<{ onClose: () => void, onSecretClick?: () => void, onFinish?: () => void }> = ({ onClose, onSecretClick, onFinish }) => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const next = () => currentStep < STEPS.length - 1 && setCurrentStep(s => s + 1);
   const prev = () => currentStep > 0 && setCurrentStep(s => s - 1);
+
+  const handleFinish = () => {
+    if (onFinish) {
+      onFinish();
+    } else {
+      onClose();
+    }
+  };
 
   const step = STEPS[currentStep];
 
@@ -171,10 +179,10 @@ export const VotingGuide: React.FC<{ onClose: () => void, onSecretClick?: () => 
           </div>
 
           <button 
-            onClick={currentStep === STEPS.length - 1 ? onClose : next}
+            onClick={currentStep === STEPS.length - 1 ? handleFinish : next}
             className={`flex items-center gap-2 px-6 py-2 rounded-xl font-bold transition-all ${currentStep === STEPS.length - 1 ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-indigo-400 hover:text-white'}`}
           >
-            {currentStep === STEPS.length - 1 ? 'Finish' : 'Next'} <ChevronRight />
+            {currentStep === STEPS.length - 1 ? (onFinish ? 'Start Voting' : 'Finish') : 'Next'} <ChevronRight />
           </button>
         </div>
       </div>
