@@ -200,6 +200,14 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
     }
   };
 
+  const escapeCSV = (value: any) => {
+    const stringValue = String(value ?? '');
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
   const exportUsersToCSV = () => {
     const headers = ['Name', 'School', 'Email', 'Registered At'];
     const rows = registeredUsers.map(u => [
@@ -209,8 +217,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       u.registeredAt?.toDate().toLocaleString() || ''
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [headers, ...rows].map(row => row.map(escapeCSV).join(",")).join("\n");
+    const blob = new Blob(['\uFEFF', csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -231,8 +239,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       v.timestamp?.toDate().toLocaleString() || ''
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [headers, ...rows].map(row => row.map(escapeCSV).join(",")).join("\n");
+    const blob = new Blob(['\uFEFF', csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
