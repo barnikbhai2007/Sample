@@ -6,6 +6,7 @@ import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { VotingGuide } from './VotingGuide';
 import { HelpCircle, Bot } from 'lucide-react';
+import { ScrollingReviews } from './ScrollingReviews';
 import { AIChatbot } from './AIChatbot';
 
 interface HomePageProps {
@@ -77,6 +78,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
+      <div className="w-full mb-8">
+        <ScrollingReviews />
+      </div>
       {profile && user && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
@@ -86,9 +90,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, isAdmin, profile
           <h2 className="text-2xl font-bold text-white mb-4">Hi, {profile.name}!</h2>
           <VoterCard 
             name={profile.name}
-            school={profile.school}
+            school={profile.school === 'others' ? profile.customSchool : profile.school}
             photoURL={user.photoURL || ''}
-            voterId={user.uid.slice(0, 8).toUpperCase()}
+            voterId={profile.voterId}
             showDownload={true}
           />
         </motion.div>

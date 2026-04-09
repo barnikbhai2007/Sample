@@ -38,10 +38,11 @@ interface RegisteredUser {
 }
 
 export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency }) => {
-  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered'>('candidates');
+  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews'>('candidates');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [votingEnabled, setVotingEnabled] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [resultsEnabled, setResultsEnabled] = useState(true);
@@ -79,12 +80,17 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       setRegisteredUsers(snap.docs.map(doc => doc.data() as RegisteredUser));
     });
 
+    const unsubReviews = onSnapshot(collection(db, 'votes'), (snap) => {
+      setReviews(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     setLoading(false);
     return () => {
       unsubCandidates();
       unsubVotes();
       unsubSettings();
       unsubUsers();
+      unsubReviews();
     };
   }, []);
 
@@ -354,6 +360,12 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
           >
             Results
           </button>
+          <button 
+            onClick={() => setActiveTab('reviews')}
+            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'reviews' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+          >
+            Reviews
+          </button>
         </nav>
 
         <main>
@@ -567,10 +579,15 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center">
                   <Users className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
-                  <p className="text-gray-400 text-sm uppercase tracking-widest">Total Votes</p>
+                  <p className="text-gray-400 text-sm uppercase tracking-widest">Total Registered</p>
+                  <h3 className="text-4xl font-bold">{registeredUsers.length}</h3>
+                </div>
+                <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center">
+                  <Vote className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm uppercase tracking-widest">Total Voted</p>
                   <h3 className="text-4xl font-bold">{votes.length}</h3>
                 </div>
-                <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center col-span-2">
+                <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 text-center">
                   <Trophy className="w-10 h-10 text-yellow-500 mx-auto mb-2" />
                   <p className="text-gray-400 text-sm uppercase tracking-widest">Current Leader</p>
                   <h3 className="text-4xl font-bold">
@@ -601,6 +618,44 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+          {activeTab === 'reviews' && (
+            <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+              <div className="p-6 border-b border-gray-800">
+                <h2 className="text-xl font-bold flex items-center gap-2">Reviews</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                    <tr>
+                      <th className="px-6 py-4">Voter</th>
+                      <th className="px-6 py-4">Rating</th>
+                      <th className="px-6 py-4">Comment</th>
+                      <th className="px-6 py-4 text-right">Highlight</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {reviews.map((r, i) => (
+                      <tr key={i} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 font-medium">{r.voterName}</td>
+                        <td className="px-6 py-4 text-yellow-500">{r.rating} stars</td>
+                        <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{r.reason}</td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={async () => {
+                              await updateDoc(doc(db, 'votes', r.id), { highlighted: !r.highlighted });
+                            }}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold ${r.highlighted ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                          >
+                            {r.highlighted ? 'Highlighted' : 'Highlight'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

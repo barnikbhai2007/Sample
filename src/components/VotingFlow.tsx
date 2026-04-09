@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Send, Vote, User, School, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Send, Vote, User, School, CheckCircle2, AlertCircle, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot, getDocFromServer } from 'firebase/firestore';
@@ -24,6 +24,7 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [candidateDetails, setCandidateDetails] = useState<{name: string, logo: string} | null>(null);
   const [voteReason, setVoteReason] = useState('');
+  const [rating, setRating] = useState(0);
   const [votingEnabled, setVotingEnabled] = useState<boolean | null>(null);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -140,6 +141,7 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         voterName: userInfo.name,
         voterSchool: userInfo.school,
         reason: voteReason || '',
+        rating: rating || 0,
         timestamp: serverTimestamp()
       };
       
@@ -306,6 +308,18 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
             {step === 'reason' && (
               <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-2xl">
+                <h2 className="text-xl font-bold text-white mb-4">Rate your experience</h2>
+                <div className="flex gap-2 mb-6 justify-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className={`p-2 rounded-full transition-colors ${rating >= star ? 'text-yellow-400' : 'text-gray-600'}`}
+                    >
+                      <Star className="w-8 h-8 fill-current" />
+                    </button>
+                  ))}
+                </div>
                 <h2 className="text-xl font-bold text-white mb-4">Why did you vote for this candidate?</h2>
                 <textarea 
                   value={voteReason}
@@ -322,7 +336,7 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   </button>
                   <button 
                     onClick={submitVote}
-                    disabled={!voteReason || loading}
+                    disabled={rating === 0 || loading}
                     className="flex-[2] bg-indigo-600 text-white p-3 rounded-xl font-bold disabled:opacity-50"
                   >
                     {loading ? <Loader2 className="animate-spin mx-auto" /> : "Confirm Vote"}

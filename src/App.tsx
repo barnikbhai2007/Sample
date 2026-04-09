@@ -59,7 +59,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({ registrationEnabled: true, votingEnabled: true, resultsEnabled: true });
-  const [profile, setProfile] = useState<{name: string, school: string, customSchool: string} | null>(null);
+  const [profile, setProfile] = useState<{name: string, school: string, customSchool: string, voterId: string} | null>(null);
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isEmergencyAdmin, setIsEmergencyAdmin] = useState(false);
@@ -102,7 +102,7 @@ export default function App() {
           if (userSnap.exists()) {
             const data = userSnap.data();
             if (data.name && data.school) {
-              setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '' });
+              setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '', voterId: data.voterId || '' });
             }
           }
         } else {
@@ -192,10 +192,24 @@ export default function App() {
     setRegistering(true);
     setError(null);
     try {
+      // Get the next voter ID number
+      const statsRef = doc(db, 'stats', 'voterIdCounter');
+      const statsSnap = await getDoc(statsRef);
+      let nextId = 1;
+      if (statsSnap.exists()) {
+        nextId = statsSnap.data().lastId + 1;
+        await updateDoc(statsRef, { lastId: nextId });
+      } else {
+        await setDoc(statsRef, { lastId: 1 });
+      }
+      
+      const voterId = `CKP-16-04-2026-${nextId.toString().padStart(4, '0')}`;
+
       await updateDoc(doc(db, 'users', user.uid), {
         name: form.name,
         school: form.school,
-        customSchool: form.school === 'others' ? form.customSchool : ''
+        customSchool: form.school === 'others' ? form.customSchool : '',
+        voterId: voterId
       });
       setProfile({ name: form.name, school: form.school, customSchool: form.customSchool });
     } catch (err: any) {
@@ -293,7 +307,7 @@ export default function App() {
                   name={profile.name}
                   school={profile.school === 'others' ? profile.customSchool : profile.school}
                   photoURL={user.photoURL || 'https://ui-avatars.com/api/?name=' + profile.name}
-                  voterId={`16042026-${user.uid.slice(0, 4).toUpperCase()}`}
+                  voterId={profile.voterId}
                 />
 
                 <div className="flex flex-col gap-2 mt-8">
