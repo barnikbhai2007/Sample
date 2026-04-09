@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Vote, BarChart3, Settings } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { VoterCard } from './VoterCard';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';

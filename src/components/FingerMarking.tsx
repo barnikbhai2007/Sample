@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, Paintbrush } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const FingerMarking: React.FC<{onComplete: () => void}> = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);

@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment, onSnapshot } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, LogOut, Loader2, ShieldCheck } from 'lucide-react';
 import { VoterCard } from './components/VoterCard';
 import { HomePage } from './components/HomePage';
