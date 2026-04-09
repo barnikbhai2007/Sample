@@ -150,6 +150,11 @@ export default function App() {
         }
       }
     } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        // User closed the popup, no need to show an error
+        setRegistering(false);
+        return;
+      }
       console.error(err);
       setError(err.message || 'Failed to sign in with Google.');
     } finally {
