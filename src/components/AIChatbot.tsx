@@ -11,7 +11,7 @@ interface Message {
 export const AIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Hello! I am your AI Voting Assistant. How can I help you today?' }
+    { role: 'model', text: 'Hello! I am Kuhu AI, your Voting Assistant. How can I help you today?' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +64,7 @@ export const AIChatbot: React.FC = () => {
         className="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:bg-indigo-700 transition-all z-50 flex items-center gap-2 group"
       >
         <Bot className="group-hover:rotate-12 transition-transform" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-bold whitespace-nowrap">AI Assistant</span>
+        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-bold whitespace-nowrap">Kuhu AI</span>
       </button>
 
       <AnimatePresence>
@@ -81,7 +81,7 @@ export const AIChatbot: React.FC = () => {
                   <Bot size={20} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-sm">Voting AI</h3>
+                  <h3 className="font-bold text-white text-sm">Kuhu AI</h3>
                   <p className="text-xs text-indigo-200">Powered by Gemini</p>
                 </div>
               </div>

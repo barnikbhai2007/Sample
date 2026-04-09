@@ -1,5 +1,5 @@
 {
-  "name": "Voter Registration",
-  "description": "A simple registration panel using Google Sign-In for the upcoming election.",
+  "name": "ChunabKeParva v3.0",
+  "description": "Official voting application for the 16th April election, featuring Kuhu AI assistant.",
   "requestFramePermissions": []
 }
