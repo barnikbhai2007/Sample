@@ -82,7 +82,7 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           return;
         }
 
-        setUser(user);
+        setUser({...user, voterId: data.voterId});
         setUserInfo({
           name: data.name || userInfo.name,
           school: data.school || userInfo.school
@@ -258,7 +258,13 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                 {step === 'card' && user && (
                   <div className="p-4 border-t border-gray-800 text-center space-y-4">
-                    <VoterCard name={userInfo.name} school={userInfo.school} photoURL={user.photoURL || ''} voterId={user.uid.slice(0, 8).toUpperCase()} showDownload={false} />
+                    <VoterCard 
+                      name={userInfo.name} 
+                      school={userInfo.school} 
+                      photoURL={user.photoURL || ''} 
+                      voterId={user.voterId || user.uid.slice(0, 8).toUpperCase()} 
+                      showDownload={false} 
+                    />
                     <button 
                       onClick={async () => {
                         setLoading(true);

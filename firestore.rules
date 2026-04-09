@@ -72,7 +72,9 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && 
                     isValidUser(request.resource.data);
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) && 
+                    request.resource.data.uid == resource.data.uid &&
+                    request.resource.data.email == resource.data.email;
       allow delete: if isAdmin();
     }
 
@@ -86,6 +88,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                     isValidVote(request.resource.data) &&
                     !exists(/databases/$(database)/documents/votes/$(request.auth.uid));
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
