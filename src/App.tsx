@@ -72,15 +72,18 @@ export default function App() {
 
   const getClientData = async () => {
     let ip = 'unknown';
+    let country = 'unknown';
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-      const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+      // Using ipapi.co for both IP and Country info
+      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
       clearTimeout(timeoutId);
       const data = await res.json();
-      ip = data.ip;
+      ip = data.ip || 'unknown';
+      country = data.country_name || 'unknown';
     } catch (e) {
-      console.error('Failed to get IP', e);
+      console.error('Failed to get client location data', e);
     }
 
     const fingerprint = [
@@ -100,7 +103,7 @@ export default function App() {
     }
     const fpId = Math.abs(hash).toString(36);
 
-    return { ip, fingerprint, fpId };
+    return { ip, country, fingerprint, fpId };
   };
 
   const isAdmin = (user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') || isEmergencyAdmin;
@@ -225,7 +228,7 @@ export default function App() {
     setRegistering(true);
     setError(null);
     try {
-      const { ip, fingerprint, fpId } = await getClientData();
+      const { ip, country, fingerprint, fpId } = await getClientData();
       
       // Run security checks in background so they don't block registration
       const runSecurityChecks = async () => {
@@ -238,6 +241,7 @@ export default function App() {
               uid: user.uid,
               email: user.email,
               ip,
+              country,
               fingerprint,
               reason: 'Multiple registrations detected from same browser (localStorage match)',
               timestamp: serverTimestamp()
@@ -254,6 +258,7 @@ export default function App() {
                 uid: user.uid,
                 email: user.email,
                 ip,
+                country,
                 fingerprint,
                 reason: `Duplicate IP registration detected (${ip})`,
                 timestamp: serverTimestamp()
@@ -270,6 +275,7 @@ export default function App() {
               uid: user.uid,
               email: user.email,
               ip,
+              country,
               fingerprint,
               reason: 'Duplicate device fingerprint detected',
               timestamp: serverTimestamp()
@@ -305,6 +311,7 @@ export default function App() {
         customSchool: form.school === 'others' ? form.customSchool : '',
         voterId: voterId,
         ip,
+        country,
         fingerprint,
         registeredAt: serverTimestamp()
       });

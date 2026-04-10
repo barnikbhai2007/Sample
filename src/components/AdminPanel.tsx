@@ -247,7 +247,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
   };
 
   const exportUsersToCSV = () => {
-    const headers = ['Name', 'School', 'Email', 'Voter ID', 'Registered At', 'IP', 'Fingerprint'];
+    const headers = ['Name', 'School', 'Email', 'Voter ID', 'Registered At', 'IP', 'Country', 'Fingerprint'];
     const rows = registeredUsers.map(u => [
       u.name || 'N/A',
       u.school || 'N/A',
@@ -255,6 +255,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       u.voterId || 'N/A',
       u.registeredAt?.toDate().toLocaleString() || '',
       u.ip || 'N/A',
+      u.country || 'N/A',
       u.fingerprint || 'N/A'
     ]);
 
@@ -586,6 +587,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                       <th className="px-6 py-4">School</th>
                       <th className="px-6 py-4">Email</th>
                       <th className="px-6 py-4">IP Address</th>
+                      <th className="px-6 py-4">Country</th>
                       <th className="px-6 py-4">Fingerprint</th>
                       <th className="px-6 py-4">Registered At</th>
                       <th className="px-6 py-4 text-right">Action</th>
@@ -616,7 +618,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                         <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
                         <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
                         <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>
-                        <td className="px-6 py-4 text-[10px] text-gray-600 font-mono truncate max-w-[100px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500">{u.country || 'N/A'}</td>
+                        <td className="px-6 py-4 text-[10px] text-gray-600 font-mono break-all min-w-[150px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>
                         <td className="px-6 py-4 text-xs text-gray-500">
                           {u.registeredAt?.toDate().toLocaleString()}
                         </td>
@@ -654,6 +657,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                         uid: auth.currentUser.uid,
                         email: auth.currentUser.email,
                         ip: '127.0.0.1',
+                        country: 'Test Country',
                         fingerprint: 'TEST_FINGERPRINT',
                         reason: 'Manual Test Alert',
                         timestamp: new Date()
@@ -672,6 +676,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                         <th className="px-6 py-4">Reason</th>
                         <th className="px-6 py-4">User/Email</th>
                         <th className="px-6 py-4">IP Address</th>
+                        <th className="px-6 py-4">Country</th>
                         <th className="px-6 py-4">Fingerprint</th>
                         <th className="px-6 py-4">Time</th>
                         <th className="px-6 py-4 text-right">Action</th>
@@ -699,7 +704,10 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                             <td className="px-6 py-4 text-xs font-mono text-gray-400 flex items-center gap-1">
                               <Globe size={12} /> {alert.ip}
                             </td>
-                            <td className="px-6 py-4 text-[10px] font-mono text-gray-600 truncate max-w-[150px]" title={alert.fingerprint}>
+                            <td className="px-6 py-4 text-xs text-gray-500">
+                              {alert.country || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 text-[10px] font-mono text-gray-600 break-all min-w-[200px]" title={alert.fingerprint}>
                               <Fingerprint size={12} className="inline mr-1" /> {alert.fingerprint}
                             </td>
                             <td className="px-6 py-4 text-xs text-gray-500">
