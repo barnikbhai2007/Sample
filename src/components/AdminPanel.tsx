@@ -650,25 +650,47 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     <h2 className="text-xl font-bold flex items-center gap-2 text-red-500"><AlertTriangle size={20} /> Security Alerts</h2>
                     <p className="text-sm text-gray-400 mt-1">Suspicious registration attempts detected by the system.</p>
                   </div>
-                  <button 
-                    onClick={async () => {
-                      if (!auth.currentUser) return;
-                      const alertId = `${auth.currentUser.uid}_test_${Date.now()}`;
-                      await setDoc(doc(db, 'security_alerts', alertId), {
-                        uid: auth.currentUser.uid,
-                        email: auth.currentUser.email,
-                        ip: '127.0.0.1',
-                        country: 'Test Country',
-                        fingerprint: 'TEST_FINGERPRINT',
-                        reason: 'Manual Test Alert',
-                        timestamp: new Date()
-                      });
-                      alert('Test alert created! Check the list below.');
-                    }}
-                    className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg font-bold transition-all"
-                  >
-                    Generate Test Alert
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={async () => {
+                        if (!confirm('This will clear all IP and Fingerprint history. Detection will start fresh. Continue?')) return;
+                        try {
+                          const ipSnap = await getDocs(collection(db, 'ip_registry'));
+                          const fpSnap = await getDocs(collection(db, 'fingerprint_registry'));
+                          const batch = writeBatch(db);
+                          ipSnap.docs.forEach(d => batch.delete(d.ref));
+                          fpSnap.docs.forEach(d => batch.delete(d.ref));
+                          await batch.commit();
+                          alert('Detection history cleared successfully!');
+                        } catch (err) {
+                          console.error(err);
+                          alert('Failed to clear history. Check console.');
+                        }
+                      }}
+                      className="text-xs text-gray-500 hover:text-red-400 px-3 py-1.5 rounded-lg transition-all"
+                    >
+                      Clear Detection History
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        if (!auth.currentUser) return;
+                        const alertId = `${auth.currentUser.uid}_test_${Date.now()}`;
+                        await setDoc(doc(db, 'security_alerts', alertId), {
+                          uid: auth.currentUser.uid,
+                          email: auth.currentUser.email,
+                          ip: '127.0.0.1',
+                          country: 'Test Country',
+                          fingerprint: 'TEST_FINGERPRINT',
+                          reason: 'Manual Test Alert',
+                          timestamp: new Date()
+                        });
+                        alert('Test alert created! Check the list below.');
+                      }}
+                      className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg font-bold transition-all"
+                    >
+                      Generate Test Alert
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">

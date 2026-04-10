@@ -129,6 +129,7 @@ service cloud.firestore {
 
     function isValidAlert(data) {
       return data.uid is string && data.uid == request.auth.uid &&
+             data.email is string &&
              data.ip is string && data.fingerprint is string &&
              (!('country' in data) || data.country is string) &&
              data.reason is string && data.timestamp is timestamp;

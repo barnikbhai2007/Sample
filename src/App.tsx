@@ -73,25 +73,53 @@ export default function App() {
   const getClientData = async () => {
     let ip = 'unknown';
     let country = 'unknown';
-    try {
+    
+    const fetchIP = async (url: string) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-      // Using ipapi.co for both IP and Country info
-      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-      clearTimeout(timeoutId);
-      const data = await res.json();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return await res.json();
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
+      }
+    };
+
+    try {
+      // Primary: ipapi.co (includes country)
+      const data = await fetchIP('https://ipapi.co/json/');
       ip = data.ip || 'unknown';
       country = data.country_name || 'unknown';
     } catch (e) {
-      console.error('Failed to get client location data', e);
+      console.warn('Primary IP service failed, trying fallback 1...');
+      try {
+        // Fallback 1: ipify (IPv4/IPv6)
+        const data = await fetchIP('https://api64.ipify.org?format=json');
+        ip = data.ip || 'unknown';
+      } catch (e2) {
+        console.warn('Fallback 1 failed, trying fallback 2...');
+        try {
+          // Fallback 2: icanhazip
+          const res = await fetch('https://icanhazip.com');
+          ip = (await res.text()).trim();
+        } catch (e3) {
+          console.error('All IP services failed', e3);
+        }
+      }
     }
 
     const fingerprint = [
       navigator.userAgent,
       navigator.language,
+      navigator.platform,
       screen.width,
       screen.height,
-      new Date().getTimezoneOffset()
+      screen.colorDepth,
+      new Date().getTimezoneOffset(),
+      (navigator as any).hardwareConcurrency || 'unknown',
+      (navigator as any).deviceMemory || 'unknown'
     ].join('|');
 
     // Simple but robust hash for fingerprint
@@ -102,6 +130,7 @@ export default function App() {
       hash = hash & hash; // Convert to 32bit integer
     }
     const fpId = Math.abs(hash).toString(36);
+    console.log('Client Data Generated:', { ip, country, fpId });
 
     return { ip, country, fingerprint, fpId };
   };
@@ -250,38 +279,53 @@ export default function App() {
 
           // 2. IP Registry Check (Skip if unknown)
           if (ip !== 'unknown') {
-            const ipKey = ip.replace(/\./g, '_');
+            // Use a safe key for Firestore document ID (replace dots, colons, etc)
+            const ipKey = btoa(ip).replace(/[/+=]/g, '_');
+            console.log('Checking IP Registry for:', ip, 'Key:', ipKey);
+            
             const ipSnap = await getDoc(doc(db, 'ip_registry', ipKey));
-            if (ipSnap.exists() && ipSnap.data().uid !== user.uid) {
-              const alertId = `${user.uid}_ip_${Date.now()}`;
-              await setDoc(doc(db, 'security_alerts', alertId), {
-                uid: user.uid, // This is the UID of the user who triggered the alert
-                email: user.email,
-                ip,
-                country,
-                fingerprint,
-                reason: `Duplicate IP registration detected (${ip})`,
-                timestamp: serverTimestamp()
-              });
+            if (ipSnap.exists()) {
+              const existingUid = ipSnap.data().uid;
+              console.log('IP Registry Match Found. Existing UID:', existingUid, 'Current UID:', user.uid);
+              
+              if (existingUid !== user.uid) {
+                const alertId = `${user.uid}_ip_${Date.now()}`;
+                await setDoc(doc(db, 'security_alerts', alertId), {
+                  uid: user.uid,
+                  email: user.email,
+                  ip,
+                  country,
+                  fingerprint,
+                  reason: `Duplicate IP registration detected (${ip}). Previous registration by UID: ${existingUid}`,
+                  timestamp: serverTimestamp()
+                });
+                console.log('Security Alert Created: Duplicate IP');
+              }
             }
-            await setDoc(doc(db, 'ip_registry', ipKey), { uid: user.uid });
+            await setDoc(doc(db, 'ip_registry', ipKey), { uid: user.uid, lastSeen: serverTimestamp() });
           }
 
           // 3. Fingerprint Registry Check
           const fpSnap = await getDoc(doc(db, 'fingerprint_registry', fpId));
-          if (fpSnap.exists() && fpSnap.data().uid !== user.uid) {
-            const alertId = `${user.uid}_fp_${Date.now()}`;
-            await setDoc(doc(db, 'security_alerts', alertId), {
-              uid: user.uid, // This is the UID of the user who triggered the alert
-              email: user.email,
-              ip,
-              country,
-              fingerprint,
-              reason: 'Duplicate device fingerprint detected',
-              timestamp: serverTimestamp()
-            });
+          if (fpSnap.exists()) {
+            const existingUid = fpSnap.data().uid;
+            console.log('Fingerprint Registry Match Found. Existing UID:', existingUid, 'Current UID:', user.uid);
+            
+            if (existingUid !== user.uid) {
+              const alertId = `${user.uid}_fp_${Date.now()}`;
+              await setDoc(doc(db, 'security_alerts', alertId), {
+                uid: user.uid,
+                email: user.email,
+                ip,
+                country,
+                fingerprint,
+                reason: 'Duplicate device fingerprint detected',
+                timestamp: serverTimestamp()
+              });
+              console.log('Security Alert Created: Duplicate Fingerprint');
+            }
           }
-          await setDoc(doc(db, 'fingerprint_registry', fpId), { uid: user.uid });
+          await setDoc(doc(db, 'fingerprint_registry', fpId), { uid: user.uid, lastSeen: serverTimestamp() });
         } catch (secErr) {
           console.error('Security check background error:', secErr);
         }
