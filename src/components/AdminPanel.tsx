@@ -594,48 +594,69 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {[...registeredUsers].sort((a, b) => {
-                      const dateA = a.registeredAt?.toDate().getTime() || 0;
-                      const dateB = b.registeredAt?.toDate().getTime() || 0;
-                      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-                    }).map((u, i) => {
-                      // Check if ANY alert exists for this user's UID
-                      const hasAlert = securityAlerts.some(a => a.uid === u.uid);
-                      return (
-                        <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${hasAlert ? 'bg-red-500/5' : ''}`}>
-                          <td className="px-6 py-4">
-                            {hasAlert ? (
-                              <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold uppercase animate-pulse">
-                                <AlertTriangle size={12} /> Flagged
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold uppercase">
-                                <ShieldCheck size={12} /> Safe
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
-                        <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
-                        <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500">{u.country || 'N/A'}</td>
-                        <td className="px-6 py-4 text-[10px] text-gray-600 font-mono break-all min-w-[150px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500">
-                          {u.registeredAt?.toDate().toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button 
-                            onClick={() => handleDeleteUser(u.uid)}
-                            className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
-                            title="Delete Registration"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                    {(() => {
+                      const ipCounts: Record<string, number> = {};
+                      const fpCounts: Record<string, number> = {};
+                      
+                      registeredUsers.forEach(u => {
+                        if (u.ip && u.ip !== 'unknown') ipCounts[u.ip] = (ipCounts[u.ip] || 0) + 1;
+                        if (u.fingerprint && u.fingerprint !== 'unknown') fpCounts[u.fingerprint] = (fpCounts[u.fingerprint] || 0) + 1;
+                      });
+
+                      return [...registeredUsers]
+                        .sort((a, b) => {
+                          const dateA = a.registeredAt?.toDate().getTime() || 0;
+                          const dateB = b.registeredAt?.toDate().getTime() || 0;
+                          return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+                        })
+                        .map((u) => {
+                          const hasExplicitAlert = securityAlerts.some(a => a.uid === u.uid);
+                          const isDuplicateIP = u.ip && u.ip !== 'unknown' && ipCounts[u.ip] > 1;
+                          const isDuplicateFP = u.fingerprint && u.fingerprint !== 'unknown' && fpCounts[u.fingerprint] > 1;
+                          const isFlagged = hasExplicitAlert || isDuplicateIP || isDuplicateFP;
+
+                          return (
+                            <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${isFlagged ? 'bg-red-500/5' : ''}`}>
+                              <td className="px-6 py-4">
+                                {isFlagged ? (
+                                  <div className="flex flex-col gap-1">
+                                    <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold uppercase animate-pulse">
+                                      <AlertTriangle size={12} /> Flagged
+                                    </span>
+                                    <div className="flex flex-col gap-0.5">
+                                      {isDuplicateIP && <span className="text-[8px] text-red-400/70 font-mono uppercase">Duplicate IP</span>}
+                                      {isDuplicateFP && <span className="text-[8px] text-red-400/70 font-mono uppercase">Duplicate Device</span>}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold uppercase">
+                                    <ShieldCheck size={12} /> Safe
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
+                              <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
+                              <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
+                              <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
+                              <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>
+                              <td className="px-6 py-4 text-xs text-gray-500">{u.country || 'N/A'}</td>
+                              <td className="px-6 py-4 text-[10px] text-gray-600 font-mono break-all min-w-[150px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>
+                              <td className="px-6 py-4 text-xs text-gray-500">
+                                {u.registeredAt?.toDate().toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button 
+                                  onClick={() => handleDeleteUser(u.uid)}
+                                  className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                                  title="Delete Registration"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        });
+                    })()}
                   </tbody>
                 </table>
               </div>
