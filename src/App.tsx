@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment, onSnapshot, runTransaction } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, LogOut, Loader2, ShieldCheck } from 'lucide-react';
 import { VoterCard } from './components/VoterCard';
@@ -194,14 +194,16 @@ export default function App() {
     try {
       // Get the next voter ID number
       const statsRef = doc(db, 'stats', 'voterIdCounter');
-      const statsSnap = await getDoc(statsRef);
       let nextId = 1;
-      if (statsSnap.exists()) {
-        nextId = statsSnap.data().lastId + 1;
-        await updateDoc(statsRef, { lastId: nextId });
-      } else {
-        await setDoc(statsRef, { lastId: 1 });
-      }
+      await runTransaction(db, async (transaction) => {
+        const statsSnap = await transaction.get(statsRef);
+        if (statsSnap.exists()) {
+          nextId = statsSnap.data().lastId + 1;
+          transaction.update(statsRef, { lastId: nextId });
+        } else {
+          transaction.set(statsRef, { lastId: 1 });
+        }
+      });
       
       const voterId = `CKP-16-04-2026-${nextId.toString().padStart(4, '0')}`;
 
