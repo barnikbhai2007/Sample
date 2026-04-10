@@ -73,7 +73,10 @@ export default function App() {
   const getClientData = async () => {
     let ip = 'unknown';
     try {
-      const res = await fetch('https://api.ipify.org?format=json');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+      const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+      clearTimeout(timeoutId);
       const data = await res.json();
       ip = data.ip;
     } catch (e) {
@@ -216,51 +219,61 @@ export default function App() {
       const { ip, fingerprint } = await getClientData();
       const fpId = btoa(fingerprint).replace(/[/+=]/g, '_'); // Safe ID
       
-      // 1. Local Storage Check (Fastest)
-      const previousRegLocal = localStorage.getItem('voter_registration_detected');
-      if (previousRegLocal && previousRegLocal !== user.uid) {
-        const alertId = `${user.uid}_local_${Date.now()}`;
-        await setDoc(doc(db, 'security_alerts', alertId), {
-          uid: user.uid,
-          email: user.email,
-          ip,
-          fingerprint,
-          reason: 'Multiple registrations detected from same browser (localStorage match)',
-          timestamp: serverTimestamp()
-        });
-      }
+      // Run security checks in background so they don't block registration
+      const runSecurityChecks = async () => {
+        try {
+          // 1. Local Storage Check
+          const previousRegLocal = localStorage.getItem('voter_registration_detected');
+          if (previousRegLocal && previousRegLocal !== user.uid) {
+            const alertId = `${user.uid}_local_${Date.now()}`;
+            await setDoc(doc(db, 'security_alerts', alertId), {
+              uid: user.uid,
+              email: user.email,
+              ip,
+              fingerprint,
+              reason: 'Multiple registrations detected from same browser (localStorage match)',
+              timestamp: serverTimestamp()
+            });
+          }
 
-      // 2. IP Registry Check (Detects cleared browser data)
-      const ipSnap = await getDoc(doc(db, 'ip_registry', ip));
-      if (ipSnap.exists() && ipSnap.data().uid !== user.uid) {
-        const alertId = `${user.uid}_ip_${Date.now()}`;
-        await setDoc(doc(db, 'security_alerts', alertId), {
-          uid: user.uid,
-          email: user.email,
-          ip,
-          fingerprint,
-          reason: `Duplicate IP registration detected (${ip})`,
-          timestamp: serverTimestamp()
-        });
-      }
+          // 2. IP Registry Check
+          const ipSnap = await getDoc(doc(db, 'ip_registry', ip));
+          if (ipSnap.exists() && ipSnap.data().uid !== user.uid) {
+            const alertId = `${user.uid}_ip_${Date.now()}`;
+            await setDoc(doc(db, 'security_alerts', alertId), {
+              uid: user.uid,
+              email: user.email,
+              ip,
+              fingerprint,
+              reason: `Duplicate IP registration detected (${ip})`,
+              timestamp: serverTimestamp()
+            });
+          }
 
-      // 3. Fingerprint Registry Check (Detects same device, different browser/IP)
-      const fpSnap = await getDoc(doc(db, 'fingerprint_registry', fpId));
-      if (fpSnap.exists() && fpSnap.data().uid !== user.uid) {
-        const alertId = `${user.uid}_fp_${Date.now()}`;
-        await setDoc(doc(db, 'security_alerts', alertId), {
-          uid: user.uid,
-          email: user.email,
-          ip,
-          fingerprint,
-          reason: 'Duplicate device fingerprint detected',
-          timestamp: serverTimestamp()
-        });
-      }
+          // 3. Fingerprint Registry Check
+          const fpSnap = await getDoc(doc(db, 'fingerprint_registry', fpId));
+          if (fpSnap.exists() && fpSnap.data().uid !== user.uid) {
+            const alertId = `${user.uid}_fp_${Date.now()}`;
+            await setDoc(doc(db, 'security_alerts', alertId), {
+              uid: user.uid,
+              email: user.email,
+              ip,
+              fingerprint,
+              reason: 'Duplicate device fingerprint detected',
+              timestamp: serverTimestamp()
+            });
+          }
 
-      // Update registries
-      await setDoc(doc(db, 'ip_registry', ip), { uid: user.uid });
-      await setDoc(doc(db, 'fingerprint_registry', fpId), { uid: user.uid });
+          // Update registries
+          await setDoc(doc(db, 'ip_registry', ip), { uid: user.uid });
+          await setDoc(doc(db, 'fingerprint_registry', fpId), { uid: user.uid });
+        } catch (secErr) {
+          console.error('Security check background error:', secErr);
+        }
+      };
+
+      // Trigger checks but don't await them for the main flow
+      runSecurityChecks();
 
       // Get the next voter ID number
       const statsRef = doc(db, 'stats', 'voterIdCounter');
