@@ -370,40 +370,40 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
           </div>
         </header>
 
-        <nav className="flex gap-4 mb-8 border-b border-gray-800">
+        <nav className="flex gap-4 mb-8 border-b border-gray-800 overflow-x-auto flex-nowrap scrollbar-hide">
           <button 
             onClick={() => setActiveTab('candidates')}
-            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'candidates' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'candidates' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
           >
             Candidates
           </button>
           <button 
             onClick={() => setActiveTab('voters')}
-            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'voters' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'voters' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
           >
             Voter Records
           </button>
           <button 
             onClick={() => setActiveTab('registered')}
-            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'registered' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'registered' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
           >
             Registered Users
           </button>
           <button 
             onClick={() => setActiveTab('results')}
-            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'results' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'results' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
           >
             Results
           </button>
           <button 
             onClick={() => setActiveTab('reviews')}
-            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'reviews' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'reviews' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
           >
             Reviews
           </button>
           <button 
             onClick={() => setActiveTab('security')}
-            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'security' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'} flex items-center gap-2`}
+            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'security' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'} flex items-center gap-2`}
           >
             Security {securityAlerts.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">{securityAlerts.length}</span>}
           </button>
