@@ -49,6 +49,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
   const [resultsEnabled, setResultsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [newCandidate, setNewCandidate] = useState({ name: '', logoUrl: '', order: 1 });
@@ -522,12 +523,20 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
             <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
               <div className="p-6 border-b border-gray-800 flex justify-between items-center">
                 <h2 className="text-xl font-bold flex items-center gap-2"><UserPlus size={20} /> Registered Users</h2>
-                <button 
-                  onClick={exportUsersToCSV}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
-                >
-                  <Download size={16} /> Export CSV
-                </button>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="text-sm font-bold text-indigo-400 hover:text-indigo-300"
+                  >
+                    Sort by Time ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})
+                  </button>
+                  <button 
+                    onClick={exportUsersToCSV}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
+                  >
+                    <Download size={16} /> Export CSV
+                  </button>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -542,8 +551,12 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {registeredUsers.map((u, i) => (
-                      <tr key={i} className="hover:bg-gray-800/50 transition-colors">
+                    {[...registeredUsers].sort((a, b) => {
+                      const dateA = a.registeredAt?.toDate().getTime() || 0;
+                      const dateB = b.registeredAt?.toDate().getTime() || 0;
+                      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+                    }).map((u, i) => (
+                      <tr key={u.uid} className="hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
                         <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
                         <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>

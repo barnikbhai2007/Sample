@@ -101,7 +101,7 @@ service cloud.firestore {
     match /stats/{statId} {
       allow read: if true;
       allow update: if isAuthenticated();
-      allow create: if isAdmin();
+      allow create: if isAuthenticated() && statId == 'voterIdCounter';
     }
   }
 }
