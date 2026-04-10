@@ -114,6 +114,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /ip_registry/{ip} {
+      allow get: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow read, delete: if isAdmin();
+    }
+
+    match /fingerprint_registry/{fp} {
+      allow get: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow read, delete: if isAdmin();
+    }
+
     function isValidAlert(data) {
       return data.uid is string && data.uid == request.auth.uid &&
              data.ip is string && data.fingerprint is string &&

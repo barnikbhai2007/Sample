@@ -75,6 +75,24 @@
         "visitCount": { "type": "number" }
       },
       "required": ["visitCount"]
+    },
+    "IPRegistry": {
+      "title": "IPRegistry",
+      "description": "Tracks UIDs associated with IP addresses.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" }
+      },
+      "required": ["uid"]
+    },
+    "FingerprintRegistry": {
+      "title": "FingerprintRegistry",
+      "description": "Tracks UIDs associated with browser fingerprints.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" }
+      },
+      "required": ["uid"]
     }
   },
   "firestore": {
@@ -101,6 +119,14 @@
     "/security_alerts/{alertId}": {
       "schema": { "$ref": "#/entities/SecurityAlert" },
       "description": "Stores security alerts for suspicious activity."
+    },
+    "/ip_registry/{ip}": {
+      "schema": { "$ref": "#/entities/IPRegistry" },
+      "description": "Registry for IP address tracking."
+    },
+    "/fingerprint_registry/{fingerprint}": {
+      "schema": { "$ref": "#/entities/FingerprintRegistry" },
+      "description": "Registry for browser fingerprint tracking."
     }
   }
 }
