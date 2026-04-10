@@ -238,7 +238,7 @@ export default function App() {
           if (previousRegLocal && previousRegLocal !== user.uid) {
             const alertId = `${user.uid}_local_${Date.now()}`;
             await setDoc(doc(db, 'security_alerts', alertId), {
-              uid: user.uid,
+              uid: user.uid, // This is the UID of the user who triggered the alert
               email: user.email,
               ip,
               country,
@@ -255,7 +255,7 @@ export default function App() {
             if (ipSnap.exists() && ipSnap.data().uid !== user.uid) {
               const alertId = `${user.uid}_ip_${Date.now()}`;
               await setDoc(doc(db, 'security_alerts', alertId), {
-                uid: user.uid,
+                uid: user.uid, // This is the UID of the user who triggered the alert
                 email: user.email,
                 ip,
                 country,
@@ -272,7 +272,7 @@ export default function App() {
           if (fpSnap.exists() && fpSnap.data().uid !== user.uid) {
             const alertId = `${user.uid}_fp_${Date.now()}`;
             await setDoc(doc(db, 'security_alerts', alertId), {
-              uid: user.uid,
+              uid: user.uid, // This is the UID of the user who triggered the alert
               email: user.email,
               ip,
               country,

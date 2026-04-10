@@ -599,6 +599,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                       const dateB = b.registeredAt?.toDate().getTime() || 0;
                       return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
                     }).map((u, i) => {
+                      // Check if ANY alert exists for this user's UID
                       const hasAlert = securityAlerts.some(a => a.uid === u.uid);
                       return (
                         <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${hasAlert ? 'bg-red-500/5' : ''}`}>
