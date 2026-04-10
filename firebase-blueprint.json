@@ -10,9 +10,25 @@
         "displayName": { "type": "string" },
         "name": { "type": "string" },
         "school": { "type": "string" },
-        "registeredAt": { "type": "string", "format": "date-time" }
+        "registeredAt": { "type": "string", "format": "date-time" },
+        "ip": { "type": "string" },
+        "fingerprint": { "type": "string" }
       },
       "required": ["uid", "email", "registeredAt"]
+    },
+    "SecurityAlert": {
+      "title": "SecurityAlert",
+      "description": "A security alert for suspicious registration.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "ip": { "type": "string" },
+        "fingerprint": { "type": "string" },
+        "reason": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "ip", "fingerprint", "reason", "timestamp"]
     },
     "Candidate": {
       "title": "Candidate",
@@ -81,6 +97,10 @@
     "/stats/global": {
       "schema": { "$ref": "#/entities/Stats" },
       "description": "Global app statistics."
+    },
+    "/security_alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/SecurityAlert" },
+      "description": "Stores security alerts for suspicious activity."
     }
   }
 }

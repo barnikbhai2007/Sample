@@ -70,6 +70,27 @@ export default function App() {
     (new URLSearchParams(window.location.search).get('page') as any) || 'home'
   );
 
+  const getClientData = async () => {
+    let ip = 'unknown';
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const data = await res.json();
+      ip = data.ip;
+    } catch (e) {
+      console.error('Failed to get IP', e);
+    }
+
+    const fingerprint = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width,
+      screen.height,
+      new Date().getTimezoneOffset()
+    ].join('|');
+
+    return { ip, fingerprint };
+  };
+
   const isAdmin = (user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') || isEmergencyAdmin;
 
   const handleEmergencyLogin = async () => {
@@ -192,6 +213,22 @@ export default function App() {
     setRegistering(true);
     setError(null);
     try {
+      const { ip, fingerprint } = await getClientData();
+      
+      // Check for suspicious activity locally
+      const previousReg = localStorage.getItem('voter_registration_detected');
+      if (previousReg && previousReg !== user.uid) {
+        const alertId = `${user.uid}_${Date.now()}`;
+        await setDoc(doc(db, 'security_alerts', alertId), {
+          uid: user.uid,
+          email: user.email,
+          ip,
+          fingerprint,
+          reason: 'Multiple registrations detected from same browser (localStorage match)',
+          timestamp: serverTimestamp()
+        });
+      }
+
       // Get the next voter ID number
       const statsRef = doc(db, 'stats', 'voterIdCounter');
       let nextId = 1;
@@ -211,8 +248,13 @@ export default function App() {
         name: form.name,
         school: form.school,
         customSchool: form.school === 'others' ? form.customSchool : '',
-        voterId: voterId
+        voterId: voterId,
+        ip,
+        fingerprint,
+        registeredAt: serverTimestamp()
       });
+
+      localStorage.setItem('voter_registration_detected', user.uid);
       setProfile({ name: form.name, school: form.school, customSchool: form.school === 'others' ? form.customSchool : '', voterId: voterId });
     } catch (err: any) {
       console.error(err);

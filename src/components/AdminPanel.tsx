@@ -8,7 +8,8 @@ import {
 import { 
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
-  UserPlus, UploadCloud, BarChart3, ShieldCheck
+  UserPlus, UploadCloud, BarChart3, ShieldCheck,
+  AlertTriangle, Fingerprint, Globe
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -36,13 +37,26 @@ interface RegisteredUser {
   email: string;
   registeredAt: any;
   voterId?: string;
+  ip?: string;
+  fingerprint?: string;
+}
+
+interface SecurityAlert {
+  id: string;
+  uid: string;
+  email: string;
+  ip: string;
+  fingerprint: string;
+  reason: string;
+  timestamp: any;
 }
 
 export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency }) => {
-  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews'>('candidates');
+  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews' | 'security'>('candidates');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [votingEnabled, setVotingEnabled] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
@@ -86,6 +100,10 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       setReviews(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
+    const unsubSecurityAlerts = onSnapshot(query(collection(db, 'security_alerts'), orderBy('timestamp', 'desc')), (snap) => {
+      setSecurityAlerts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SecurityAlert)));
+    });
+
     setLoading(false);
     return () => {
       unsubCandidates();
@@ -93,6 +111,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       unsubSettings();
       unsubUsers();
       unsubReviews();
+      unsubSecurityAlerts();
     };
   }, []);
 
@@ -184,6 +203,16 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
     }
   };
 
+  const handleDeleteAlert = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this security alert?')) return;
+    try {
+      await deleteDoc(doc(db, 'security_alerts', id));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete alert.');
+    }
+  };
+
   const publishResults = async () => {
     setPublishing(true);
     try {
@@ -218,12 +247,15 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
   };
 
   const exportUsersToCSV = () => {
-    const headers = ['Name', 'School', 'Email', 'Registered At'];
+    const headers = ['Name', 'School', 'Email', 'Voter ID', 'Registered At', 'IP', 'Fingerprint'];
     const rows = registeredUsers.map(u => [
       u.name || 'N/A',
       u.school || 'N/A',
       u.email,
-      u.registeredAt?.toDate().toLocaleString() || ''
+      u.voterId || 'N/A',
+      u.registeredAt?.toDate().toLocaleString() || '',
+      u.ip || 'N/A',
+      u.fingerprint || 'N/A'
     ]);
 
     const csvContent = [headers, ...rows].map(row => row.map(escapeCSV).join(",")).join("\n");
@@ -368,6 +400,12 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
             className={`pb-4 px-2 font-bold transition-all ${activeTab === 'reviews' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
           >
             Reviews
+          </button>
+          <button 
+            onClick={() => setActiveTab('security')}
+            className={`pb-4 px-2 font-bold transition-all ${activeTab === 'security' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'} flex items-center gap-2`}
+          >
+            Security {securityAlerts.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">{securityAlerts.length}</span>}
           </button>
         </nav>
 
@@ -546,6 +584,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                       <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
                       <th className="px-6 py-4">Email</th>
+                      <th className="px-6 py-4">IP Address</th>
+                      <th className="px-6 py-4">Fingerprint</th>
                       <th className="px-6 py-4">Registered At</th>
                       <th className="px-6 py-4 text-right">Action</th>
                     </tr>
@@ -561,6 +601,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                         <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
                         <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
                         <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>
+                        <td className="px-6 py-4 text-[10px] text-gray-600 font-mono truncate max-w-[100px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>
                         <td className="px-6 py-4 text-xs text-gray-500">
                           {u.registeredAt?.toDate().toLocaleString()}
                         </td>
@@ -577,6 +619,83 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+                <div className="p-6 border-b border-gray-800">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-red-500"><AlertTriangle size={20} /> Security Alerts</h2>
+                  <p className="text-sm text-gray-400 mt-1">Suspicious registration attempts detected by the system.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                      <tr>
+                        <th className="px-6 py-4">Reason</th>
+                        <th className="px-6 py-4">User/Email</th>
+                        <th className="px-6 py-4">IP Address</th>
+                        <th className="px-6 py-4">Fingerprint</th>
+                        <th className="px-6 py-4">Time</th>
+                        <th className="px-6 py-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {securityAlerts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                            No security alerts detected. System is secure.
+                          </td>
+                        </tr>
+                      ) : (
+                        securityAlerts.map((alert) => (
+                          <tr key={alert.id} className="hover:bg-red-500/5 transition-colors">
+                            <td className="px-6 py-4">
+                              <span className="bg-red-500/10 text-red-500 text-xs px-2 py-1 rounded-full font-bold">
+                                {alert.reason}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium">{alert.email}</div>
+                              <div className="text-[10px] text-gray-500 font-mono">{alert.uid}</div>
+                            </td>
+                            <td className="px-6 py-4 text-xs font-mono text-gray-400 flex items-center gap-1">
+                              <Globe size={12} /> {alert.ip}
+                            </td>
+                            <td className="px-6 py-4 text-[10px] font-mono text-gray-600 truncate max-w-[150px]" title={alert.fingerprint}>
+                              <Fingerprint size={12} className="inline mr-1" /> {alert.fingerprint}
+                            </td>
+                            <td className="px-6 py-4 text-xs text-gray-500">
+                              {alert.timestamp?.toDate().toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button 
+                                onClick={() => handleDeleteAlert(alert.id)}
+                                className="text-gray-500 hover:text-red-500 p-2 rounded-lg transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-6">
+                <h3 className="font-bold text-indigo-400 flex items-center gap-2 mb-2">
+                  <ShieldCheck size={18} /> How Detection Works
+                </h3>
+                <ul className="text-sm text-gray-400 space-y-2 list-disc list-inside">
+                  <li><strong>Browser Fingerprinting:</strong> Captures unique browser characteristics to identify the same device even if the IP changes.</li>
+                  <li><strong>IP Tracking:</strong> Logs the public IP address of every registration.</li>
+                  <li><strong>Local Storage Check:</strong> Detects if a different user account was recently used to register on the same browser.</li>
+                  <li><strong>Real-time Alerts:</strong> Suspicious patterns trigger immediate alerts visible in this panel.</li>
+                </ul>
               </div>
             </div>
           )}

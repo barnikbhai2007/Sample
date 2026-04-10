@@ -52,6 +52,8 @@ service cloud.firestore {
       return data.uid is string && data.uid == request.auth.uid &&
              data.email is string && isValidEmail(data.email) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('ip' in data) || (data.ip is string)) &&
+             (!('fingerprint' in data) || (data.fingerprint is string)) &&
              data.registeredAt is timestamp;
     }
 
@@ -102,6 +104,20 @@ service cloud.firestore {
       allow read: if true;
       allow update: if isAuthenticated();
       allow create: if isAuthenticated() && statId == 'voterIdCounter';
+    }
+
+    match /security_alerts/{alertId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && 
+                    alertId.startsWith(request.auth.uid) &&
+                    isValidAlert(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    function isValidAlert(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.ip is string && data.fingerprint is string &&
+             data.reason is string && data.timestamp is timestamp;
     }
   }
 }
