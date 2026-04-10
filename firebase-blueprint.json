@@ -13,7 +13,8 @@
         "registeredAt": { "type": "string", "format": "date-time" },
         "ip": { "type": "string" },
         "country": { "type": "string" },
-        "fingerprint": { "type": "string" }
+        "fingerprint": { "type": "string" },
+        "isBanned": { "type": "boolean" }
       },
       "required": ["uid", "email", "registeredAt"]
     },

@@ -8,7 +8,7 @@ import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, updateDoc, increment, onSnapshot, runTransaction } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, LogOut, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, LogOut, Loader2, ShieldCheck, Ban } from 'lucide-react';
 import { VoterCard } from './components/VoterCard';
 import { HomePage } from './components/HomePage';
 import { VotingFlow } from './components/VotingFlow';
@@ -57,6 +57,7 @@ const SCHOOLS = [
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [isBanned, setIsBanned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({ registrationEnabled: true, votingEnabled: true, resultsEnabled: true });
   const [profile, setProfile] = useState<{name: string, school: string, customSchool: string, voterId: string} | null>(null);
@@ -159,19 +160,34 @@ export default function App() {
   };
 
   useEffect(() => {
+    let unsubUserDoc: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       try {
+        if (unsubUserDoc) {
+          unsubUserDoc();
+          unsubUserDoc = null;
+        }
+
         setUser(currentUser);
         if (currentUser) {
-          const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            if (data.name && data.school) {
-              setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '', voterId: data.voterId || '' });
+          unsubUserDoc = onSnapshot(doc(db, 'users', currentUser.uid), (doc) => {
+            if (doc.exists()) {
+              const data = doc.data();
+              setIsBanned(!!data.isBanned);
+              if (data.name && data.school) {
+                setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '', voterId: data.voterId || '' });
+              }
+            } else {
+              setIsBanned(false);
+              setProfile(null);
             }
-          }
+          }, (err) => {
+            console.error("User doc snapshot error:", err);
+          });
         } else {
           setProfile(null);
+          setIsBanned(false);
         }
       } catch (err) {
         console.error("Auth state change error:", err);
@@ -179,7 +195,11 @@ export default function App() {
         setLoading(false);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (unsubUserDoc) unsubUserDoc();
+    };
   }, []);
 
   useEffect(() => {
@@ -389,7 +409,32 @@ export default function App() {
 
   let content;
 
-  if (page === 'home') {
+  if (isBanned && !isAdmin) {
+    content = (
+      <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-gray-900 rounded-2xl shadow-2xl p-8 text-center border border-red-900/30"
+        >
+          <div className="w-20 h-20 bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Ban className="w-10 h-10" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Account Banned</h2>
+          <p className="text-gray-400 mb-8 leading-relaxed">
+            You are banned due to missuse. If you think this is a mistake, please contact the administrator.
+          </p>
+          <button 
+            onClick={handleSignOut}
+            className="w-full bg-gray-800 text-white py-3 rounded-xl font-bold hover:bg-gray-700 transition-all flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </motion.div>
+      </div>
+    );
+  } else if (page === 'home') {
     content = <HomePage onNavigate={setPage} isAdmin={isAdmin} profile={profile} user={user} onSecretClick={() => setShowAdminModal(true)} />;
   } else if (page === 'vote') {
     if (!settings.votingEnabled && !isAdmin) {

@@ -9,7 +9,7 @@ import {
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
   UserPlus, UploadCloud, BarChart3, ShieldCheck,
-  AlertTriangle, Fingerprint, Globe
+  AlertTriangle, Fingerprint, Globe, Ban
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -39,6 +39,7 @@ interface RegisteredUser {
   voterId?: string;
   ip?: string;
   fingerprint?: string;
+  isBanned?: boolean;
 }
 
 interface SecurityAlert {
@@ -136,6 +137,18 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
 
   const toggleResults = async () => {
     await updateDoc(doc(db, 'settings', 'global'), { resultsEnabled: !resultsEnabled });
+  };
+
+  const handleToggleBan = async (uid: string, currentStatus: boolean) => {
+    const action = currentStatus ? 'unban' : 'ban';
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), { isBanned: !currentStatus });
+      alert(`User ${action}ned successfully.`);
+    } catch (err) {
+      console.error(err);
+      alert(`Failed to ${action} user.`);
+    }
   };
 
   const resetVotes = async () => {
@@ -616,9 +629,13 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                           const isFlagged = hasExplicitAlert || isDuplicateIP || isDuplicateFP;
 
                           return (
-                            <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${isFlagged ? 'bg-red-500/5' : ''}`}>
+                            <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${isFlagged ? 'bg-red-500/5' : ''} ${u.isBanned ? 'opacity-60' : ''}`}>
                               <td className="px-6 py-4">
-                                {isFlagged ? (
+                                {u.isBanned ? (
+                                  <span className="flex items-center gap-1 text-red-600 text-[10px] font-bold uppercase">
+                                    <Ban size={12} /> Banned
+                                  </span>
+                                ) : isFlagged ? (
                                   <div className="flex flex-col gap-1">
                                     <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold uppercase animate-pulse">
                                       <AlertTriangle size={12} /> Flagged
@@ -645,13 +662,22 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                                 {u.registeredAt?.toDate().toLocaleString()}
                               </td>
                               <td className="px-6 py-4 text-right">
-                                <button 
-                                  onClick={() => handleDeleteUser(u.uid)}
-                                  className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
-                                  title="Delete Registration"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button 
+                                    onClick={() => handleToggleBan(u.uid, !!u.isBanned)}
+                                    className={`${u.isBanned ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-orange-500 hover:bg-orange-500/10'} p-2 rounded-lg transition-colors`}
+                                    title={u.isBanned ? 'Unban User' : 'Ban User'}
+                                  >
+                                    <Ban size={18} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteUser(u.uid)}
+                                    className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                                    title="Delete Registration"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
