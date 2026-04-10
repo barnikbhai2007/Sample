@@ -211,7 +211,7 @@ export default function App() {
         customSchool: form.school === 'others' ? form.customSchool : '',
         voterId: voterId
       });
-      setProfile({ name: form.name, school: form.school, customSchool: form.customSchool });
+      setProfile({ name: form.name, school: form.school, customSchool: form.school === 'others' ? form.customSchool : '', voterId: voterId });
     } catch (err: any) {
       console.error(err);
       setError('Failed to save profile: ' + (err instanceof Error ? err.message : String(err)));

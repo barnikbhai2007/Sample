@@ -12,7 +12,7 @@ import { AIChatbot } from './AIChatbot';
 interface HomePageProps {
   onNavigate: (page: 'register' | 'vote' | 'results' | 'admin') => void;
   isAdmin?: boolean;
-  profile?: { name: string, school: string } | null;
+  profile?: { name: string, school: string, customSchool: string, voterId: string } | null;
   user?: any;
   onSecretClick?: () => void;
 }
