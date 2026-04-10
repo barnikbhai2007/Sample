@@ -580,6 +580,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                 <table className="w-full text-left">
                   <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                     <tr>
+                      <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4">Name</th>
                       <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
@@ -595,9 +596,22 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                       const dateA = a.registeredAt?.toDate().getTime() || 0;
                       const dateB = b.registeredAt?.toDate().getTime() || 0;
                       return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-                    }).map((u, i) => (
-                      <tr key={u.uid} className="hover:bg-gray-800/50 transition-colors">
-                        <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
+                    }).map((u, i) => {
+                      const hasAlert = securityAlerts.some(a => a.uid === u.uid);
+                      return (
+                        <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${hasAlert ? 'bg-red-500/5' : ''}`}>
+                          <td className="px-6 py-4">
+                            {hasAlert ? (
+                              <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold uppercase animate-pulse">
+                                <AlertTriangle size={12} /> Flagged
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold uppercase">
+                                <ShieldCheck size={12} /> Safe
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
                         <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
                         <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
                         <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
@@ -616,7 +630,8 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
@@ -626,9 +641,29 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
           {activeTab === 'security' && (
             <div className="space-y-6">
               <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-                <div className="p-6 border-b border-gray-800">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-red-500"><AlertTriangle size={20} /> Security Alerts</h2>
-                  <p className="text-sm text-gray-400 mt-1">Suspicious registration attempts detected by the system.</p>
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2 text-red-500"><AlertTriangle size={20} /> Security Alerts</h2>
+                    <p className="text-sm text-gray-400 mt-1">Suspicious registration attempts detected by the system.</p>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      if (!auth.currentUser) return;
+                      const alertId = `${auth.currentUser.uid}_test_${Date.now()}`;
+                      await setDoc(doc(db, 'security_alerts', alertId), {
+                        uid: auth.currentUser.uid,
+                        email: auth.currentUser.email,
+                        ip: '127.0.0.1',
+                        fingerprint: 'TEST_FINGERPRINT',
+                        reason: 'Manual Test Alert',
+                        timestamp: new Date()
+                      });
+                      alert('Test alert created! Check the list below.');
+                    }}
+                    className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg font-bold transition-all"
+                  >
+                    Generate Test Alert
+                  </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">

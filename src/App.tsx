@@ -91,7 +91,16 @@ export default function App() {
       new Date().getTimezoneOffset()
     ].join('|');
 
-    return { ip, fingerprint };
+    // Simple but robust hash for fingerprint
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i++) {
+      const char = fingerprint.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    const fpId = Math.abs(hash).toString(36);
+
+    return { ip, fingerprint, fpId };
   };
 
   const isAdmin = (user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') || isEmergencyAdmin;
@@ -216,8 +225,7 @@ export default function App() {
     setRegistering(true);
     setError(null);
     try {
-      const { ip, fingerprint } = await getClientData();
-      const fpId = btoa(fingerprint).replace(/[/+=]/g, '_'); // Safe ID
+      const { ip, fingerprint, fpId } = await getClientData();
       
       // Run security checks in background so they don't block registration
       const runSecurityChecks = async () => {
@@ -236,18 +244,22 @@ export default function App() {
             });
           }
 
-          // 2. IP Registry Check
-          const ipSnap = await getDoc(doc(db, 'ip_registry', ip));
-          if (ipSnap.exists() && ipSnap.data().uid !== user.uid) {
-            const alertId = `${user.uid}_ip_${Date.now()}`;
-            await setDoc(doc(db, 'security_alerts', alertId), {
-              uid: user.uid,
-              email: user.email,
-              ip,
-              fingerprint,
-              reason: `Duplicate IP registration detected (${ip})`,
-              timestamp: serverTimestamp()
-            });
+          // 2. IP Registry Check (Skip if unknown)
+          if (ip !== 'unknown') {
+            const ipKey = ip.replace(/\./g, '_');
+            const ipSnap = await getDoc(doc(db, 'ip_registry', ipKey));
+            if (ipSnap.exists() && ipSnap.data().uid !== user.uid) {
+              const alertId = `${user.uid}_ip_${Date.now()}`;
+              await setDoc(doc(db, 'security_alerts', alertId), {
+                uid: user.uid,
+                email: user.email,
+                ip,
+                fingerprint,
+                reason: `Duplicate IP registration detected (${ip})`,
+                timestamp: serverTimestamp()
+              });
+            }
+            await setDoc(doc(db, 'ip_registry', ipKey), { uid: user.uid });
           }
 
           // 3. Fingerprint Registry Check
@@ -263,9 +275,6 @@ export default function App() {
               timestamp: serverTimestamp()
             });
           }
-
-          // Update registries
-          await setDoc(doc(db, 'ip_registry', ip), { uid: user.uid });
           await setDoc(doc(db, 'fingerprint_registry', fpId), { uid: user.uid });
         } catch (secErr) {
           console.error('Security check background error:', secErr);
