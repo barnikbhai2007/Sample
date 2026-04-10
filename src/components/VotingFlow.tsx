@@ -85,7 +85,7 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         setUser({...user, voterId: data.voterId});
         setUserInfo({
           name: data.name || userInfo.name,
-          school: data.school || userInfo.school
+          school: data.school === 'others' ? (data.customSchool || 'Others') : (data.school || userInfo.school)
         });
         setMessages(prev => [...prev, {role: 'assistant', text: 'Identity verified. Loading your digital voter card...'}]);
         setStep('card');

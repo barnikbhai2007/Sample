@@ -40,6 +40,7 @@ interface RegisteredUser {
   ip?: string;
   fingerprint?: string;
   isBanned?: boolean;
+  customSchool?: string;
 }
 
 interface SecurityAlert {
@@ -263,7 +264,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
     const headers = ['Name', 'School', 'Email', 'Voter ID', 'Registered At', 'IP', 'Country', 'Fingerprint'];
     const rows = registeredUsers.map(u => [
       u.name || 'N/A',
-      u.school || 'N/A',
+      u.school === 'others' ? (u.customSchool || 'Others') : (u.school || 'N/A'),
       u.email,
       u.voterId || 'N/A',
       u.registeredAt?.toDate().toLocaleString() || '',
@@ -653,7 +654,16 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                               </td>
                               <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
                               <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
-                              <td className="px-6 py-4 text-gray-400">{u.school || 'N/A'}</td>
+                              <td className="px-6 py-4 text-gray-400">
+                                {u.school === 'others' ? (
+                                  <span className="flex flex-col">
+                                    <span className="text-[10px] text-indigo-400 uppercase font-bold">Others</span>
+                                    <span>{u.customSchool || 'N/A'}</span>
+                                  </span>
+                                ) : (
+                                  u.school || 'N/A'
+                                )}
+                              </td>
                               <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
                               <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>
                               <td className="px-6 py-4 text-xs text-gray-500">{u.country || 'N/A'}</td>
