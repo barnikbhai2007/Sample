@@ -14,7 +14,9 @@
         "ip": { "type": "string" },
         "country": { "type": "string" },
         "fingerprint": { "type": "string" },
-        "isBanned": { "type": "boolean" }
+        "isBanned": { "type": "boolean" },
+        "googleDisplayName": { "type": "string" },
+        "googlePhotoURL": { "type": "string" }
       },
       "required": ["uid", "email", "registeredAt"]
     },

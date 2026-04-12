@@ -252,10 +252,22 @@ export default function App() {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName || '',
+            googleDisplayName: user.displayName || '',
+            googlePhotoURL: user.photoURL || '',
             registeredAt: serverTimestamp()
           });
         } catch (err) {
           handleFirestoreError(err, OperationType.CREATE, 'users/' + user.uid);
+        }
+      } else {
+        // Update Google info for existing users
+        try {
+          await updateDoc(userRef, {
+            googleDisplayName: user.displayName || '',
+            googlePhotoURL: user.photoURL || ''
+          });
+        } catch (err) {
+          console.error("Failed to update google info:", err);
         }
       }
     } catch (err: any) {

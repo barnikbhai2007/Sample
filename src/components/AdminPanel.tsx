@@ -9,7 +9,7 @@ import {
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
   UserPlus, UploadCloud, BarChart3, ShieldCheck,
-  AlertTriangle, Fingerprint, Globe, Ban
+  AlertTriangle, Fingerprint, Globe, Ban, Edit2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -41,6 +41,8 @@ interface RegisteredUser {
   fingerprint?: string;
   isBanned?: boolean;
   customSchool?: string;
+  googleDisplayName?: string;
+  googlePhotoURL?: string;
 }
 
 interface SecurityAlert {
@@ -60,6 +62,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [editingUserName, setEditingUserName] = useState<{ uid: string, name: string } | null>(null);
   const [votingEnabled, setVotingEnabled] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [resultsEnabled, setResultsEnabled] = useState(true);
@@ -149,6 +152,18 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
     } catch (err) {
       console.error(err);
       alert(`Failed to ${action} user.`);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    if (!editingUserName) return;
+    try {
+      await updateDoc(doc(db, 'users', editingUserName.uid), { name: editingUserName.name });
+      setEditingUserName(null);
+      alert('Name updated successfully.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update name.');
     }
   };
 
@@ -261,7 +276,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
   };
 
   const exportUsersToCSV = () => {
-    const headers = ['Name', 'School', 'Email', 'Voter ID', 'Registered At', 'IP', 'Country', 'Fingerprint'];
+    const headers = ['Name', 'School', 'Email', 'Voter ID', 'Registered At', 'IP', 'Country', 'Fingerprint', 'Banned', 'Google Name'];
     const rows = registeredUsers.map(u => [
       u.name || 'N/A',
       u.school === 'others' ? (u.customSchool || 'Others') : (u.school || 'N/A'),
@@ -270,7 +285,9 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       u.registeredAt?.toDate().toLocaleString() || '',
       u.ip || 'N/A',
       u.country || 'N/A',
-      u.fingerprint || 'N/A'
+      u.fingerprint || 'N/A',
+      u.isBanned ? 'YES' : 'NO',
+      u.googleDisplayName || 'N/A'
     ]);
 
     const csvContent = [headers, ...rows].map(row => row.map(escapeCSV).join(",")).join("\n");
@@ -596,6 +613,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                   <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                     <tr>
                       <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Google Account</th>
                       <th className="px-6 py-4">Name</th>
                       <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
@@ -652,7 +670,29 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                                   </span>
                                 )}
                               </td>
-                              <td className="px-6 py-4 font-medium">{u.name || 'N/A'}</td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  {u.googlePhotoURL ? (
+                                    <img src={u.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
+                                  )}
+                                  <div className="text-xs text-gray-400 truncate max-w-[120px]" title={u.googleDisplayName}>
+                                    {u.googleDisplayName || 'N/A'}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 font-medium">
+                                <div className="flex items-center gap-2 group">
+                                  <span>{u.name || 'N/A'}</span>
+                                  <button 
+                                    onClick={() => setEditingUserName({ uid: u.uid, name: u.name || '' })}
+                                    className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-indigo-300 transition-opacity"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
                               <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
                               <td className="px-6 py-4 text-gray-400">
                                 {u.school === 'others' ? (
@@ -920,6 +960,40 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
           )}
         </main>
       </div>
+
+      {editingUserName && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-gray-900 border border-gray-800 p-8 rounded-3xl max-w-sm w-full shadow-2xl"
+          >
+            <h2 className="text-xl font-bold text-white mb-4">Edit Voter Name</h2>
+            <p className="text-xs text-gray-500 mb-4">Update the name for this voter in the database.</p>
+            <input 
+              type="text"
+              value={editingUserName.name}
+              onChange={e => setEditingUserName({ ...editingUserName, name: e.target.value })}
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white mb-6 focus:ring-2 focus:ring-indigo-500 outline-none"
+              placeholder="Enter new name"
+            />
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setEditingUserName(null)}
+                className="flex-1 px-4 py-2 text-gray-400 hover:text-white font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleUpdateName}
+                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-700"
+              >
+                Update
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
