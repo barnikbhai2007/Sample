@@ -70,6 +70,57 @@ interface AdminKey {
   createdAt: any;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export const AdminPanel: React.FC<{ 
   isEmergency?: boolean;
   permissions: {
@@ -98,6 +149,7 @@ export const AdminPanel: React.FC<{
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [resultsEnabled, setResultsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [keyError, setKeyError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -115,7 +167,9 @@ export const AdminPanel: React.FC<{
 
   const handleCreateKey = async () => {
     if (!newKeyLabel) return;
+    setKeyError(null);
     const key = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const path = `admin_keys/${key}`;
     try {
       await setDoc(doc(db, 'admin_keys', key), {
         key,
@@ -126,14 +180,19 @@ export const AdminPanel: React.FC<{
       setNewKeyLabel('');
       alert(`Key created: ${key}`);
     } catch (err) {
-      console.error(err);
-      alert('Failed to create key.');
+      setKeyError('Failed to create key. Please check permissions.');
+      handleFirestoreError(err, OperationType.CREATE, path);
     }
   };
 
   const handleDeleteKey = async (id: string) => {
     if (!confirm('Delete this access key?')) return;
-    await deleteDoc(doc(db, 'admin_keys', id));
+    const path = `admin_keys/${id}`;
+    try {
+      await deleteDoc(doc(db, 'admin_keys', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, path);
+    }
   };
 
   const handleEditCandidate = async () => {
@@ -1063,6 +1122,11 @@ export const AdminPanel: React.FC<{
             <div className="space-y-8">
               <section className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Key size={20} /> Create Access Key</h2>
+                {keyError && (
+                  <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded-xl text-xs text-red-400">
+                    {keyError}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>

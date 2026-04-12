@@ -129,9 +129,19 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    function isValidAdminKey(data) {
+      return data.key is string &&
+             data.label is string && data.label.size() > 0 &&
+             data.permissions is map &&
+             data.createdAt is timestamp;
+    }
+
     match /admin_keys/{keyId} {
       allow get: if true;
-      allow read, write: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidAdminKey(request.resource.data);
+      allow update: if isAdmin() && isValidAdminKey(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     function isValidAlert(data) {
