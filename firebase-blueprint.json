@@ -98,6 +98,28 @@
         "uid": { "type": "string" }
       },
       "required": ["uid"]
+    },
+    "AdminKey": {
+      "title": "AdminKey",
+      "description": "A limited access key for the admin panel.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "permissions": {
+          "type": "object",
+          "properties": {
+            "canViewCandidates": { "type": "boolean" },
+            "canViewVoters": { "type": "boolean" },
+            "canViewRegistered": { "type": "boolean" },
+            "canViewResults": { "type": "boolean" },
+            "canViewReviews": { "type": "boolean" },
+            "canViewSecurity": { "type": "boolean" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["key", "permissions", "createdAt"]
     }
   },
   "firestore": {
@@ -132,6 +154,10 @@
     "/fingerprint_registry/{fingerprint}": {
       "schema": { "$ref": "#/entities/FingerprintRegistry" },
       "description": "Registry for browser fingerprint tracking."
+    },
+    "/admin_keys/{keyId}": {
+      "schema": { "$ref": "#/entities/AdminKey" },
+      "description": "Stores limited access keys for the admin panel."
     }
   }
 }

@@ -3,13 +3,13 @@ import { db, auth } from '../firebase';
 import { 
   collection, onSnapshot, doc, setDoc, updateDoc, 
   deleteDoc, query, orderBy, getDocs, writeBatch,
-  getDocsFromServer
+  getDocsFromServer, serverTimestamp
 } from 'firebase/firestore';
 import { 
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
   UserPlus, UploadCloud, BarChart3, ShieldCheck,
-  AlertTriangle, Fingerprint, Globe, Ban, Edit2
+  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -55,13 +55,44 @@ interface SecurityAlert {
   timestamp: any;
 }
 
-export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency }) => {
-  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews' | 'security'>('candidates');
+interface AdminKey {
+  id: string;
+  key: string;
+  label: string;
+  permissions: {
+    canViewCandidates: boolean;
+    canViewVoters: boolean;
+    canViewRegistered: boolean;
+    canViewResults: boolean;
+    canViewReviews: boolean;
+    canViewSecurity: boolean;
+  };
+  createdAt: any;
+}
+
+export const AdminPanel: React.FC<{ 
+  isEmergency?: boolean;
+  permissions: {
+    canViewCandidates: boolean;
+    canViewVoters: boolean;
+    canViewRegistered: boolean;
+    canViewResults: boolean;
+    canViewReviews: boolean;
+    canViewSecurity: boolean;
+    isFullAdmin: boolean;
+  } | null;
+}> = ({ isEmergency, permissions }) => {
+  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews' | 'security' | 'access-keys'>(
+    permissions?.canViewCandidates ? 'candidates' : 
+    permissions?.canViewRegistered ? 'registered' : 
+    permissions?.canViewResults ? 'results' : 'candidates'
+  );
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [adminKeys, setAdminKeys] = useState<AdminKey[]>([]);
   const [editingUserName, setEditingUserName] = useState<{ uid: string, name: string } | null>(null);
   const [votingEnabled, setVotingEnabled] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
@@ -72,6 +103,38 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
 
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [newCandidate, setNewCandidate] = useState({ name: '', logoUrl: '', order: 1 });
+  const [newKeyLabel, setNewKeyLabel] = useState('');
+  const [newKeyPermissions, setNewKeyPermissions] = useState({
+    canViewCandidates: false,
+    canViewVoters: false,
+    canViewRegistered: true,
+    canViewResults: true,
+    canViewReviews: false,
+    canViewSecurity: false
+  });
+
+  const handleCreateKey = async () => {
+    if (!newKeyLabel) return;
+    const key = Math.random().toString(36).substring(2, 10).toUpperCase();
+    try {
+      await setDoc(doc(db, 'admin_keys', key), {
+        key,
+        label: newKeyLabel,
+        permissions: newKeyPermissions,
+        createdAt: serverTimestamp()
+      });
+      setNewKeyLabel('');
+      alert(`Key created: ${key}`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create key.');
+    }
+  };
+
+  const handleDeleteKey = async (id: string) => {
+    if (!confirm('Delete this access key?')) return;
+    await deleteDoc(doc(db, 'admin_keys', id));
+  };
 
   const handleEditCandidate = async () => {
     if (!editingCandidate) return;
@@ -109,6 +172,10 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       setSecurityAlerts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SecurityAlert)));
     });
 
+    const unsubAdminKeys = onSnapshot(query(collection(db, 'admin_keys'), orderBy('createdAt', 'desc')), (snap) => {
+      setAdminKeys(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminKey)));
+    });
+
     setLoading(false);
     return () => {
       unsubCandidates();
@@ -117,6 +184,7 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
       unsubUsers();
       unsubReviews();
       unsubSecurityAlerts();
+      unsubAdminKeys();
     };
   }, []);
 
@@ -370,75 +438,97 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
             </h1>
             <p className="text-gray-400">Manage candidates, voters, and results</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={toggleRegistration}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${registrationEnabled ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-700'}`}
-              title="Toggle Registration Feature"
-            >
-              {registrationEnabled ? <UserPlus size={18} /> : <UserPlus size={18} className="opacity-50" />}
-              Reg: {registrationEnabled ? 'ON' : 'OFF'}
-            </button>
-            <button 
-              onClick={toggleVoting}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${votingEnabled ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
-            >
-              {votingEnabled ? <Square size={18} /> : <Play size={18} />}
-              Vote: {votingEnabled ? 'ON' : 'OFF'}
-            </button>
-            <button 
-              onClick={toggleResults}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${resultsEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-700'}`}
-            >
-              <BarChart3 size={18} />
-              Results: {resultsEnabled ? 'ON' : 'OFF'}
-            </button>
-            <button 
-              onClick={resetVotes}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl font-bold"
-            >
-              <RefreshCw size={18} /> Reset
-            </button>
-          </div>
+          {permissions?.isFullAdmin && (
+            <div className="flex flex-wrap gap-2">
+              <button 
+                onClick={toggleRegistration}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${registrationEnabled ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-700'}`}
+                title="Toggle Registration Feature"
+              >
+                {registrationEnabled ? <UserPlus size={18} /> : <UserPlus size={18} className="opacity-50" />}
+                Reg: {registrationEnabled ? 'ON' : 'OFF'}
+              </button>
+              <button 
+                onClick={toggleVoting}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${votingEnabled ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+              >
+                {votingEnabled ? <Square size={18} /> : <Play size={18} />}
+                Vote: {votingEnabled ? 'ON' : 'OFF'}
+              </button>
+              <button 
+                onClick={toggleResults}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${resultsEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-700'}`}
+              >
+                <BarChart3 size={18} />
+                Results: {resultsEnabled ? 'ON' : 'OFF'}
+              </button>
+              <button 
+                onClick={resetVotes}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl font-bold"
+              >
+                <RefreshCw size={18} /> Reset
+              </button>
+            </div>
+          )}
         </header>
 
         <nav className="flex gap-4 mb-8 border-b border-gray-800 overflow-x-auto flex-nowrap scrollbar-hide">
-          <button 
-            onClick={() => setActiveTab('candidates')}
-            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'candidates' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
-          >
-            Candidates
-          </button>
-          <button 
-            onClick={() => setActiveTab('voters')}
-            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'voters' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
-          >
-            Voter Records
-          </button>
-          <button 
-            onClick={() => setActiveTab('registered')}
-            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'registered' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
-          >
-            Registered Users
-          </button>
-          <button 
-            onClick={() => setActiveTab('results')}
-            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'results' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
-          >
-            Results
-          </button>
-          <button 
-            onClick={() => setActiveTab('reviews')}
-            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'reviews' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
-          >
-            Reviews
-          </button>
-          <button 
-            onClick={() => setActiveTab('security')}
-            className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'security' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'} flex items-center gap-2`}
-          >
-            Security {securityAlerts.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">{securityAlerts.length}</span>}
-          </button>
+          {permissions?.canViewCandidates && (
+            <button 
+              onClick={() => setActiveTab('candidates')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'candidates' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            >
+              Candidates
+            </button>
+          )}
+          {permissions?.canViewVoters && (
+            <button 
+              onClick={() => setActiveTab('voters')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'voters' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            >
+              Voter Records
+            </button>
+          )}
+          {permissions?.canViewRegistered && (
+            <button 
+              onClick={() => setActiveTab('registered')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'registered' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            >
+              Registered Users
+            </button>
+          )}
+          {permissions?.canViewResults && (
+            <button 
+              onClick={() => setActiveTab('results')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'results' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            >
+              Results
+            </button>
+          )}
+          {permissions?.canViewReviews && (
+            <button 
+              onClick={() => setActiveTab('reviews')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'reviews' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            >
+              Reviews
+            </button>
+          )}
+          {permissions?.canViewSecurity && (
+            <button 
+              onClick={() => setActiveTab('security')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'security' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'} flex items-center gap-2`}
+            >
+              Security {securityAlerts.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">{securityAlerts.length}</span>}
+            </button>
+          )}
+          {permissions?.isFullAdmin && (
+            <button 
+              onClick={() => setActiveTab('access-keys')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'access-keys' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'} flex items-center gap-2`}
+            >
+              <Key size={16} /> Access Keys
+            </button>
+          )}
         </nav>
 
         <main>
@@ -593,36 +683,38 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
             <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
               <div className="p-6 border-b border-gray-800 flex justify-between items-center">
                 <h2 className="text-xl font-bold flex items-center gap-2"><UserPlus size={20} /> Registered Users</h2>
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                    className="text-sm font-bold text-indigo-400 hover:text-indigo-300"
-                  >
-                    Sort by Time ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})
-                  </button>
-                  <button 
-                    onClick={exportUsersToCSV}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
-                  >
-                    <Download size={16} /> Export CSV
-                  </button>
-                </div>
+                {permissions?.isFullAdmin && (
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className="text-sm font-bold text-indigo-400 hover:text-indigo-300"
+                    >
+                      Sort by Time ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})
+                    </button>
+                    <button 
+                      onClick={exportUsersToCSV}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
+                    >
+                      <Download size={16} /> Export CSV
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                     <tr>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4">Google Account</th>
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">Status</th>}
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">Google Account</th>}
                       <th className="px-6 py-4">Name</th>
                       <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
-                      <th className="px-6 py-4">Email</th>
-                      <th className="px-6 py-4">IP Address</th>
-                      <th className="px-6 py-4">Country</th>
-                      <th className="px-6 py-4">Fingerprint</th>
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">Email</th>}
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">IP Address</th>}
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">Country</th>}
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">Fingerprint</th>}
                       <th className="px-6 py-4">Registered At</th>
-                      <th className="px-6 py-4 text-right">Action</th>
+                      {permissions?.isFullAdmin && <th className="px-6 py-4 text-right">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
@@ -648,49 +740,55 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                           const isFlagged = hasExplicitAlert || isDuplicateIP || isDuplicateFP;
 
                           return (
-                            <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${isFlagged ? 'bg-red-500/5' : ''} ${u.isBanned ? 'opacity-60' : ''}`}>
-                              <td className="px-6 py-4">
-                                {u.isBanned ? (
-                                  <span className="flex items-center gap-1 text-red-600 text-[10px] font-bold uppercase">
-                                    <Ban size={12} /> Banned
-                                  </span>
-                                ) : isFlagged ? (
-                                  <div className="flex flex-col gap-1">
-                                    <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold uppercase animate-pulse">
-                                      <AlertTriangle size={12} /> Flagged
+                            <tr key={u.uid} className={`hover:bg-gray-800/50 transition-colors ${isFlagged && permissions?.isFullAdmin ? 'bg-red-500/5' : ''} ${u.isBanned ? 'opacity-60' : ''}`}>
+                              {permissions?.isFullAdmin && (
+                                <td className="px-6 py-4">
+                                  {u.isBanned ? (
+                                    <span className="flex items-center gap-1 text-red-600 text-[10px] font-bold uppercase">
+                                      <Ban size={12} /> Banned
                                     </span>
-                                    <div className="flex flex-col gap-0.5">
-                                      {isDuplicateIP && <span className="text-[8px] text-red-400/70 font-mono uppercase">Duplicate IP</span>}
-                                      {isDuplicateFP && <span className="text-[8px] text-red-400/70 font-mono uppercase">Duplicate Device</span>}
+                                  ) : isFlagged ? (
+                                    <div className="flex flex-col gap-1">
+                                      <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold uppercase animate-pulse">
+                                        <AlertTriangle size={12} /> Flagged
+                                      </span>
+                                      <div className="flex flex-col gap-0.5">
+                                        {isDuplicateIP && <span className="text-[8px] text-red-400/70 font-mono uppercase">Duplicate IP</span>}
+                                        {isDuplicateFP && <span className="text-[8px] text-red-400/70 font-mono uppercase">Duplicate Device</span>}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold uppercase">
+                                      <ShieldCheck size={12} /> Safe
+                                    </span>
+                                  )}
+                                </td>
+                              )}
+                              {permissions?.isFullAdmin && (
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                    {u.googlePhotoURL ? (
+                                      <img src={u.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
+                                    )}
+                                    <div className="text-xs text-gray-400 truncate max-w-[120px]" title={u.googleDisplayName}>
+                                      {u.googleDisplayName || 'N/A'}
                                     </div>
                                   </div>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold uppercase">
-                                    <ShieldCheck size={12} /> Safe
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  {u.googlePhotoURL ? (
-                                    <img src={u.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
-                                  )}
-                                  <div className="text-xs text-gray-400 truncate max-w-[120px]" title={u.googleDisplayName}>
-                                    {u.googleDisplayName || 'N/A'}
-                                  </div>
-                                </div>
-                              </td>
+                                </td>
+                              )}
                               <td className="px-6 py-4 font-medium">
                                 <div className="flex items-center gap-2 group">
                                   <span>{u.name || 'N/A'}</span>
-                                  <button 
-                                    onClick={() => setEditingUserName({ uid: u.uid, name: u.name || '' })}
-                                    className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-indigo-300 transition-opacity"
-                                  >
-                                    <Edit2 size={14} />
-                                  </button>
+                                  {permissions?.isFullAdmin && (
+                                    <button 
+                                      onClick={() => setEditingUserName({ uid: u.uid, name: u.name || '' })}
+                                      className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-indigo-300 transition-opacity"
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4 font-mono text-indigo-400">{u.voterId || 'N/A'}</td>
@@ -704,31 +802,33 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                                   u.school || 'N/A'
                                 )}
                               </td>
-                              <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>
-                              <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>
-                              <td className="px-6 py-4 text-xs text-gray-500">{u.country || 'N/A'}</td>
-                              <td className="px-6 py-4 text-[10px] text-gray-600 font-mono break-all min-w-[150px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>
+                              {permissions?.isFullAdmin && <td className="px-6 py-4 text-sm text-gray-400">{u.email}</td>}
+                              {permissions?.isFullAdmin && <td className="px-6 py-4 text-xs text-gray-500 font-mono">{u.ip || 'N/A'}</td>}
+                              {permissions?.isFullAdmin && <td className="px-6 py-4 text-xs text-gray-500">{u.country || 'N/A'}</td>}
+                              {permissions?.isFullAdmin && <td className="px-6 py-4 text-[10px] text-gray-600 font-mono break-all min-w-[150px]" title={u.fingerprint}>{u.fingerprint || 'N/A'}</td>}
                               <td className="px-6 py-4 text-xs text-gray-500">
                                 {u.registeredAt?.toDate().toLocaleString()}
                               </td>
-                              <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <button 
-                                    onClick={() => handleToggleBan(u.uid, !!u.isBanned)}
-                                    className={`${u.isBanned ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-orange-500 hover:bg-orange-500/10'} p-2 rounded-lg transition-colors`}
-                                    title={u.isBanned ? 'Unban User' : 'Ban User'}
-                                  >
-                                    <Ban size={18} />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteUser(u.uid)}
-                                    className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
-                                    title="Delete Registration"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                </div>
-                              </td>
+                              {permissions?.isFullAdmin && (
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                      onClick={() => handleToggleBan(u.uid, !!u.isBanned)}
+                                      className={`${u.isBanned ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-orange-500 hover:bg-orange-500/10'} p-2 rounded-lg transition-colors`}
+                                      title={u.isBanned ? 'Unban User' : 'Ban User'}
+                                    >
+                                      <Ban size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteUser(u.uid)}
+                                      className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                                      title="Delete Registration"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           );
                         });
@@ -949,6 +1049,93 @@ export const AdminPanel: React.FC<{ isEmergency?: boolean }> = ({ isEmergency })
                             className={`px-3 py-1 rounded-lg text-xs font-bold ${r.highlighted ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-300'}`}
                           >
                             {r.highlighted ? 'Highlighted' : 'Highlight'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'access-keys' && permissions?.isFullAdmin && (
+            <div className="space-y-8">
+              <section className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Key size={20} /> Create Access Key</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Key Label (e.g. "Staff Member")</label>
+                      <input 
+                        placeholder="Label"
+                        value={newKeyLabel}
+                        onChange={e => setNewKeyLabel(e.target.value)}
+                        className="w-full bg-gray-800 rounded-xl px-4 py-2 border border-gray-700 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <button 
+                      onClick={handleCreateKey}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold transition-all"
+                    >
+                      Generate Key
+                    </button>
+                  </div>
+                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+                    <p className="text-sm font-bold mb-3 text-gray-300">Permissions</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {Object.entries(newKeyPermissions).map(([key, val]) => (
+                        <label key={key} className="flex items-center gap-2 cursor-pointer group">
+                          <input 
+                            type="checkbox"
+                            checked={val}
+                            onChange={e => setNewKeyPermissions({...newKeyPermissions, [key]: e.target.checked})}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-xs text-gray-400 group-hover:text-gray-200 transition-colors">
+                            {key.replace('canView', 'View ')}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                    <tr>
+                      <th className="px-6 py-4">Label</th>
+                      <th className="px-6 py-4">Key</th>
+                      <th className="px-6 py-4">Permissions</th>
+                      <th className="px-6 py-4">Created</th>
+                      <th className="px-6 py-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {adminKeys.map(k => (
+                      <tr key={k.id} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 font-bold">{k.label}</td>
+                        <td className="px-6 py-4 font-mono text-indigo-400">{k.key}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(k.permissions).filter(([_, v]) => v).map(([pk]) => (
+                              <span key={pk} className="text-[10px] bg-gray-800 px-2 py-0.5 rounded border border-gray-700 text-gray-400">
+                                {pk.replace('canView', '')}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {k.createdAt?.toDate().toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={() => handleDeleteKey(k.id)}
+                            className="text-red-500 hover:text-red-400 p-2"
+                          >
+                            <Trash2 size={18} />
                           </button>
                         </td>
                       </tr>

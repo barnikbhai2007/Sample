@@ -129,6 +129,11 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    match /admin_keys/{keyId} {
+      allow get: if true;
+      allow read, write: if isAdmin();
+    }
+
     function isValidAlert(data) {
       return data.uid is string && data.uid == request.auth.uid &&
              data.email is string &&

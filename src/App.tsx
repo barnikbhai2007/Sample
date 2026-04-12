@@ -66,6 +66,15 @@ export default function App() {
   const [isEmergencyAdmin, setIsEmergencyAdmin] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminSecret, setAdminSecret] = useState('');
+  const [adminPermissions, setAdminPermissions] = useState<{
+    canViewCandidates: boolean;
+    canViewVoters: boolean;
+    canViewRegistered: boolean;
+    canViewResults: boolean;
+    canViewReviews: boolean;
+    canViewSecurity: boolean;
+    isFullAdmin: boolean;
+  } | null>(null);
   const [form, setForm] = useState({ name: '', school: '', customSchool: '' });
   const [page, setPage] = useState<'home' | 'register' | 'vote' | 'results' | 'finger-verification' | 'admin'>(
     (new URLSearchParams(window.location.search).get('page') as any) || 'home'
@@ -136,17 +145,25 @@ export default function App() {
     return { ip, country, fingerprint, fpId };
   };
 
-  const isAdmin = (user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') || isEmergencyAdmin;
+  const isAdmin = (user?.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') || isEmergencyAdmin || !!adminPermissions;
 
   const handleEmergencyLogin = async () => {
     if (adminSecret === 'brokenaqua@2000#7') {
       try {
-        // Create the bypass document to allow Firestore writes even if unauthenticated
         await setDoc(doc(db, 'admin_bypass', 'brokenaqua_2000_7'), {
           active: true,
           timestamp: serverTimestamp()
         });
         setIsEmergencyAdmin(true);
+        setAdminPermissions({
+          canViewCandidates: true,
+          canViewVoters: true,
+          canViewRegistered: true,
+          canViewResults: true,
+          canViewReviews: true,
+          canViewSecurity: true,
+          isFullAdmin: true
+        });
         setShowAdminModal(false);
         setPage('home');
       } catch (err) {
@@ -154,7 +171,23 @@ export default function App() {
         setError('Secret correct, but failed to activate backend access. Check console.');
       }
     } else {
-      setError('Invalid Admin Secret');
+      // Check for limited access keys
+      try {
+        const keySnap = await getDoc(doc(db, 'admin_keys', adminSecret));
+        if (keySnap.exists()) {
+          const keyData = keySnap.data();
+          setAdminPermissions({
+            ...keyData.permissions,
+            isFullAdmin: false
+          });
+          setShowAdminModal(false);
+          setPage('home');
+          return;
+        }
+      } catch (err) {
+        console.error('Key check error:', err);
+      }
+      setError('Invalid Admin Secret or Key');
       setShowAdminModal(false);
     }
   };
@@ -177,6 +210,18 @@ export default function App() {
               setIsBanned(!!data.isBanned);
               if (data.name && data.school) {
                 setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '', voterId: data.voterId || '' });
+              }
+              // Set full permissions if main admin
+              if (currentUser.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') {
+                setAdminPermissions({
+                  canViewCandidates: true,
+                  canViewVoters: true,
+                  canViewRegistered: true,
+                  canViewResults: true,
+                  canViewReviews: true,
+                  canViewSecurity: true,
+                  isFullAdmin: true
+                });
               }
             } else {
               setIsBanned(false);
@@ -475,7 +520,7 @@ export default function App() {
           >
             ← Back
           </button>
-          <AdminPanel isEmergency={isEmergencyAdmin} />
+          <AdminPanel isEmergency={isEmergencyAdmin} permissions={adminPermissions} />
         </div>
       );
     }
@@ -685,9 +730,10 @@ export default function App() {
               className="bg-gray-900 border border-gray-800 p-8 rounded-3xl max-w-sm w-full shadow-2xl"
             >
               <h2 className="text-xl font-bold text-white mb-4">Admin Access</h2>
+              <p className="text-xs text-gray-500 mb-4">Enter the main secret or a shared access key.</p>
               <input 
                 type="password"
-                placeholder="Enter Secret Code"
+                placeholder="Secret Code or Key"
                 value={adminSecret}
                 onChange={e => setAdminSecret(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white mb-6 focus:ring-2 focus:ring-indigo-500 outline-none"
