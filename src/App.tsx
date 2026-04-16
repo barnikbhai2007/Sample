@@ -164,8 +164,10 @@ export default function App() {
               if (data.name && data.school) {
                 setProfile({ name: data.name, school: data.school, customSchool: data.customSchool || '', voterId: data.voterId || '' });
               }
+              
+              const email = currentUser.email?.toLowerCase();
               // Set full permissions if main admin
-              if (currentUser.email?.toLowerCase() === 'barnikbhowmik2@gmail.com') {
+              if (email === 'barnikbhowmik2@gmail.com') {
                 setAdminPermissions({
                   canViewCandidates: true,
                   canViewVoters: true,
@@ -175,6 +177,17 @@ export default function App() {
                   canViewSecurity: true,
                   canViewParticipation: true,
                   isFullAdmin: true
+                });
+              } else if (email === 'syubraj70416690@gmail.com' || email === 'webblogger82@gmail.com') {
+                setAdminPermissions({
+                  canViewCandidates: false,
+                  canViewVoters: false,
+                  canViewRegistered: false,
+                  canViewResults: false,
+                  canViewReviews: false,
+                  canViewSecurity: false,
+                  canViewParticipation: true,
+                  isFullAdmin: false
                 });
               }
             } else {

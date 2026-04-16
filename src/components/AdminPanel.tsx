@@ -144,8 +144,13 @@ export const AdminPanel: React.FC<{
 }> = ({ isEmergency, permissions }) => {
   const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews' | 'security' | 'access-keys' | 'participation'>(
     permissions?.canViewCandidates ? 'candidates' : 
+    permissions?.canViewVoters ? 'voters' :
     permissions?.canViewRegistered ? 'registered' : 
-    permissions?.canViewResults ? 'results' : 'candidates'
+    permissions?.canViewParticipation ? 'participation' :
+    permissions?.canViewResults ? 'results' : 
+    permissions?.canViewReviews ? 'reviews' :
+    permissions?.canViewSecurity ? 'security' :
+    permissions?.isFullAdmin ? 'access-keys' : 'candidates'
   );
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votes, setVotes] = useState<VoteRecord[]>([]);
