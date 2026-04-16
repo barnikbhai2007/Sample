@@ -74,6 +74,7 @@ export default function App() {
     canViewResults: boolean;
     canViewReviews: boolean;
     canViewSecurity: boolean;
+    canViewParticipation: boolean;
     isFullAdmin: boolean;
   } | null>(null);
   const [form, setForm] = useState({ name: '', school: '', customSchool: '' });
@@ -98,6 +99,7 @@ export default function App() {
           canViewResults: true,
           canViewReviews: true,
           canViewSecurity: true,
+          canViewParticipation: true,
           isFullAdmin: true
         });
         setShowAdminModal(false);
@@ -171,6 +173,7 @@ export default function App() {
                   canViewResults: true,
                   canViewReviews: true,
                   canViewSecurity: true,
+                  canViewParticipation: true,
                   isFullAdmin: true
                 });
               }

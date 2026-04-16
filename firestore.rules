@@ -131,6 +131,11 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    match /banned_ips/{ip} {
+      allow get: if true;
+      allow read, write: if isAdmin();
+    }
+
     match /fingerprint_registry/{fp} {
       allow get: if isAuthenticated();
       allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;

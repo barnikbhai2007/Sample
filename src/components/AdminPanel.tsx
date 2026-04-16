@@ -9,7 +9,7 @@ import {
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
   UserPlus, UploadCloud, BarChart3, ShieldCheck,
-  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key, EyeOff, Eye, ShieldAlert
+  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key, EyeOff, Eye, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -26,6 +26,7 @@ interface VoteRecord {
   candidateId: string;
   voterName: string;
   voterSchool: string;
+  voterEmail?: string;
   reason: string;
   timestamp: any;
   voterIp?: string;
@@ -137,10 +138,11 @@ export const AdminPanel: React.FC<{
     canViewSecurity: boolean;
     canDeleteVotes: boolean;
     canEditUsers: boolean;
+    canViewParticipation: boolean;
     isFullAdmin: boolean;
   } | null;
 }> = ({ isEmergency, permissions }) => {
-  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews' | 'security' | 'access-keys'>(
+  const [activeTab, setActiveTab] = useState<'candidates' | 'voters' | 'results' | 'registered' | 'reviews' | 'security' | 'access-keys' | 'participation'>(
     permissions?.canViewCandidates ? 'candidates' : 
     permissions?.canViewRegistered ? 'registered' : 
     permissions?.canViewResults ? 'results' : 'candidates'
@@ -173,7 +175,8 @@ export const AdminPanel: React.FC<{
     canViewReviews: false,
     canViewSecurity: false,
     canDeleteVotes: false,
-    canEditUsers: false
+    canEditUsers: false,
+    canViewParticipation: false
   });
 
   const handleCreateKey = async () => {
@@ -309,6 +312,25 @@ export const AdminPanel: React.FC<{
     }
   };
 
+  const handleDeleteAllByIP = async (ip: string) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete ALL votes from IP: ${ip}?`)) return;
+    try {
+      setLoading(true);
+      const ipVotes = votes.filter(v => v.voterIp === ip);
+      const batch = writeBatch(db);
+      ipVotes.forEach(v => {
+        batch.delete(doc(db, 'votes', v.id));
+      });
+      await batch.commit();
+      alert(`Deleted ${ipVotes.length} votes from IP ${ip}.`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete votes by IP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpdateName = async () => {
     if (!editingUserName) return;
     try {
@@ -366,6 +388,69 @@ export const AdminPanel: React.FC<{
     } catch (error) {
       console.error('Error hiding vote:', error);
       alert('Failed to hide vote: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteVote = async (docId: string) => {
+    if (!window.confirm('PERMANENT DELETE: Are you sure? This cannot be undone and the vote will be gone forever.')) return;
+    try {
+      setLoading(true);
+      await deleteDoc(doc(db, 'votes', docId));
+      alert('Vote permanently deleted.');
+    } catch (error) {
+      console.error('Error deleting vote:', error);
+      alert('Failed to delete vote.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [showManualVoteForm, setShowManualVoteForm] = useState(false);
+  const [quickRemoveId, setQuickRemoveId] = useState('');
+
+  const handleQuickRemove = async () => {
+    if (!quickRemoveId) return;
+    const voteToDelete = votes.find(v => v.id === quickRemoveId || v.voterRegistrationId === quickRemoveId || v.voterEmail === quickRemoveId);
+    if (!voteToDelete) {
+      alert('No vote found matching that ID or Email.');
+      return;
+    }
+    await handleDeleteVote(voteToDelete.id);
+    setQuickRemoveId('');
+  };
+  const [manualVote, setManualVote] = useState({
+    voterName: '',
+    voterEmail: '',
+    voterSchool: '',
+    candidateId: '',
+    reason: 'Manual entry by admin'
+  });
+
+  const handleManualVoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualVote.voterName || !manualVote.candidateId) {
+      alert('Please fill in at least the name and candidate.');
+      return;
+    }
+    try {
+      setLoading(true);
+      const tempId = `manual_${Date.now()}`;
+      await setDoc(doc(db, 'votes', tempId), {
+        ...manualVote,
+        voterId: tempId,
+        voterRegistrationId: 'MANUAL',
+        voterIp: 'ADMIN_MANUAL',
+        timestamp: serverTimestamp(),
+        hidden: false
+      });
+      alert('Manual vote added successfully.');
+      setShowManualVoteForm(false);
+      setManualVote({ voterName: '', voterEmail: '', voterSchool: '', candidateId: '', reason: 'Manual entry by admin' });
+    } catch (err) {
+      console.error('Error adding manual vote:', err);
+      alert('Failed to add manual vote.');
     } finally {
       setLoading(false);
     }
@@ -612,6 +697,14 @@ export const AdminPanel: React.FC<{
               Registered Users
             </button>
           )}
+          {permissions?.canViewParticipation && (
+            <button 
+              onClick={() => setActiveTab('participation')}
+              className={`pb-4 px-2 font-bold transition-all whitespace-nowrap ${activeTab === 'participation' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-400'}`}
+            >
+              Participation
+            </button>
+          )}
           {permissions?.canViewResults && (
             <button 
               onClick={() => setActiveTab('results')}
@@ -797,6 +890,12 @@ export const AdminPanel: React.FC<{
                   <h2 className="text-xl font-bold flex items-center gap-2"><UserCheck size={20} /> Voting Records</h2>
                   <div className="flex items-center gap-4">
                     <button 
+                      onClick={() => setShowManualVoteForm(!showManualVoteForm)}
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl font-bold text-sm"
+                    >
+                      <Plus size={16} /> Add Manual Vote
+                    </button>
+                    <button 
                       onClick={() => setVoteSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                       className="text-sm font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                     >
@@ -810,12 +909,89 @@ export const AdminPanel: React.FC<{
                     </button>
                   </div>
                 </div>
+
+                <div className="p-6 bg-gray-800/30 border-b border-gray-800 flex flex-wrap items-center gap-4">
+                  <div className="flex-1 min-w-[200px] relative">
+                    <input 
+                      placeholder="Quick Remove by ID or Email..."
+                      className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm pr-10"
+                      value={quickRemoveId}
+                      onChange={e => setQuickRemoveId(e.target.value)}
+                    />
+                    <button 
+                      onClick={handleQuickRemove}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-400"
+                      title="Quick Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 italic">Enter Voter ID, Email, or Doc ID to instantly find and delete a vote.</p>
+                </div>
+
+                {showManualVoteForm && (
+                  <div className="p-6 bg-gray-800/50 border-b border-gray-800">
+                    <form onSubmit={handleManualVoteSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <input 
+                        placeholder="Voter Name"
+                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm"
+                        value={manualVote.voterName}
+                        onChange={e => setManualVote({...manualVote, voterName: e.target.value})}
+                        required
+                      />
+                      <input 
+                        placeholder="Voter Email"
+                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm"
+                        value={manualVote.voterEmail}
+                        onChange={e => setManualVote({...manualVote, voterEmail: e.target.value})}
+                      />
+                      <select 
+                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm"
+                        value={manualVote.candidateId}
+                        onChange={e => setManualVote({...manualVote, candidateId: e.target.value})}
+                        required
+                      >
+                        <option value="">Select Candidate</option>
+                        {candidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      <input 
+                        placeholder="School"
+                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm"
+                        value={manualVote.voterSchool}
+                        onChange={e => setManualVote({...manualVote, voterSchool: e.target.value})}
+                      />
+                      <input 
+                        placeholder="Reason"
+                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm md:col-span-2"
+                        value={manualVote.reason}
+                        onChange={e => setManualVote({...manualVote, reason: e.target.value})}
+                      />
+                      <div className="md:col-span-3 flex justify-end gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setShowManualVoteForm(false)}
+                          className="px-4 py-2 text-gray-400 hover:text-white text-sm font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-bold text-sm"
+                        >
+                          Add Vote
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                       <tr>
                         <th className="px-6 py-4">Google Account</th>
                         <th className="px-6 py-4">Voter</th>
+                        <th className="px-6 py-4">Email</th>
                         <th className="px-6 py-4">Voter ID</th>
                         <th className="px-6 py-4">School</th>
                         <th className="px-6 py-4">Choice</th>
@@ -862,6 +1038,7 @@ export const AdminPanel: React.FC<{
                                   )}
                                 </div>
                               </td>
+                              <td className="px-6 py-4 text-xs text-gray-400">{v.voterEmail || 'N/A'}</td>
                               <td className="px-6 py-4 font-mono text-xs text-indigo-400">{v.voterRegistrationId || 'N/A'}</td>
                               <td className="px-6 py-4 text-gray-400">{v.voterSchool}</td>
                               <td className="px-6 py-4">
@@ -875,12 +1052,21 @@ export const AdminPanel: React.FC<{
                                     {v.voterIp || 'N/A'}
                                   </span>
                                   {v.voterIp && v.voterIp !== 'N/A' && permissions?.isFullAdmin && (
-                                    <button 
-                                      onClick={() => handleBanIP(v.voterIp)}
-                                      className="text-[10px] text-red-500 hover:underline flex items-center gap-1 font-bold"
-                                    >
-                                      <Ban size={10} /> Ban IP
-                                    </button>
+                                    <div className="flex gap-2">
+                                      <button 
+                                        onClick={() => handleBanIP(v.voterIp!)}
+                                        className="text-[10px] text-red-500 hover:underline flex items-center gap-1 font-bold"
+                                      >
+                                        <Ban size={10} /> Ban IP
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteAllByIP(v.voterIp!)}
+                                        className="text-[10px] text-orange-500 hover:underline flex items-center gap-1 font-bold"
+                                        title="Delete all votes from this IP"
+                                      >
+                                        <Trash2 size={10} /> Clear IP
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </td>
@@ -890,13 +1076,22 @@ export const AdminPanel: React.FC<{
                               </td>
                               <td className="px-6 py-4 text-right">
                                 {(permissions?.isFullAdmin || permissions?.canDeleteVotes) && (
-                                  <button 
-                                    onClick={() => handleHideVote(v.id)}
-                                    className="text-amber-500 hover:bg-amber-500/10 p-2 rounded-lg transition-colors"
-                                    title="Hide Vote"
-                                  >
-                                    <EyeOff size={18} />
-                                  </button>
+                                  <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => handleHideVote(v.id)}
+                                      className="text-amber-500 hover:bg-amber-500/10 p-2 rounded-lg transition-colors"
+                                      title="Hide Vote"
+                                    >
+                                      <EyeOff size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteVote(v.id)}
+                                      className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                                      title="Delete Permanently"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -1286,6 +1481,87 @@ export const AdminPanel: React.FC<{
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'participation' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-emerald-900/20 border border-emerald-800 p-6 rounded-2xl text-center">
+                  <UserCheck className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest">Voted</p>
+                  <h3 className="text-4xl font-bold text-emerald-500">
+                    {registeredUsers.filter(u => votes.some(v => v.voterId === u.uid)).length}
+                  </h3>
+                </div>
+                <div className="bg-red-900/20 border border-red-800 p-6 rounded-2xl text-center">
+                  <Users className="w-10 h-10 text-red-500 mx-auto mb-2" />
+                  <p className="text-red-400 text-sm font-bold uppercase tracking-widest">Not Voted Yet</p>
+                  <h3 className="text-4xl font-bold text-red-500">
+                    {registeredUsers.filter(u => !votes.some(v => v.voterId === u.uid)).length}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+                  <h2 className="text-xl font-bold">Participation Details</h2>
+                  <div className="flex gap-2">
+                    <span className="flex items-center gap-1 text-xs text-emerald-500 font-bold bg-emerald-500/10 px-2 py-1 rounded-full">
+                      <CheckCircle2 size={12} /> Voted
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-red-500 font-bold bg-red-500/10 px-2 py-1 rounded-full">
+                      <AlertTriangle size={12} /> Pending
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                      <tr>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Voter Name</th>
+                        <th className="px-6 py-4">School</th>
+                        <th className="px-6 py-4">Voter ID</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {registeredUsers
+                        .sort((a, b) => {
+                          const aVoted = votes.some(v => v.voterId === a.uid);
+                          const bVoted = votes.some(v => v.voterId === b.uid);
+                          if (aVoted === bVoted) {
+                            const nameA = a.name || '';
+                            const nameB = b.name || '';
+                            return nameA.localeCompare(nameB);
+                          }
+                          return aVoted ? 1 : -1; // Pending first
+                        })
+                        .map(u => {
+                          const hasVoted = votes.some(v => v.voterId === u.uid);
+                          return (
+                            <tr key={u.uid} className="hover:bg-gray-800/50 transition-colors">
+                              <td className="px-6 py-4">
+                                {hasVoted ? (
+                                  <span className="text-emerald-500 flex items-center gap-1 font-bold text-xs">
+                                    <CheckCircle2 size={14} /> VOTED
+                                  </span>
+                                ) : (
+                                  <span className="text-red-500 flex items-center gap-1 font-bold text-xs">
+                                    <AlertTriangle size={14} /> PENDING
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 font-bold">{u.name}</td>
+                              <td className="px-6 py-4 text-sm text-gray-500">{u.school}</td>
+                              <td className="px-6 py-4 font-mono text-xs text-indigo-400">{u.voterId || 'N/A'}</td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

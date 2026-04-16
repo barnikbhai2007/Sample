@@ -143,6 +143,7 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         candidateId: selectedCandidate,
         voterName: userInfo.name,
         voterSchool: userInfo.school,
+        voterEmail: user.email || auth.currentUser?.email || '',
         reason: voteReason || '',
         rating: rating || 0,
         voterIp: ip,
