@@ -57,6 +57,11 @@
         "voterName": { "type": "string" },
         "voterSchool": { "type": "string" },
         "reason": { "type": "string" },
+        "rating": { "type": "number" },
+        "voterIp": { "type": "string" },
+        "googleDisplayName": { "type": "string" },
+        "googlePhotoURL": { "type": "string" },
+        "voterRegistrationId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["voterId", "candidateId", "voterName", "voterSchool", "reason", "timestamp"]

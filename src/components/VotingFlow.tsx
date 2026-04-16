@@ -9,6 +9,7 @@ import { TypingMessage } from './TypingMessage';
 import { EVMComponent } from './EVMComponent';
 import { FingerMarking } from './FingerMarking';
 import { VVPATComponent } from './VVPATComponent';
+import { getClientData } from '../lib/clientData';
 
 export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([
@@ -135,6 +136,8 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     if (!user || !selectedCandidate) return;
     setLoading(true);
     try {
+      const { ip } = await getClientData();
+      
       const voteData = {
         voterId: user.uid,
         candidateId: selectedCandidate,
@@ -142,6 +145,10 @@ export const VotingFlow: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         voterSchool: userInfo.school,
         reason: voteReason || '',
         rating: rating || 0,
+        voterIp: ip,
+        googleDisplayName: auth.currentUser?.displayName || '',
+        googlePhotoURL: auth.currentUser?.photoURL || '',
+        voterRegistrationId: user.voterId || '',
         timestamp: serverTimestamp()
       };
       

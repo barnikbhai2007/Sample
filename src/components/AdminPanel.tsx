@@ -28,6 +28,10 @@ interface VoteRecord {
   voterSchool: string;
   reason: string;
   timestamp: any;
+  voterIp?: string;
+  googleDisplayName?: string;
+  googlePhotoURL?: string;
+  voterRegistrationId?: string;
 }
 
 interface RegisteredUser {
@@ -430,12 +434,15 @@ export const AdminPanel: React.FC<{
   };
 
   const exportToCSV = () => {
-    const headers = ['Voter Name', 'School', 'Voted For', 'Reason', 'Timestamp'];
+    const headers = ['Voter Name', 'Voter ID', 'School', 'Voted For', 'Reason', 'IP Address', 'Google Name', 'Timestamp'];
     const rows = votes.map(v => [
       v.voterName,
+      v.voterRegistrationId || 'N/A',
       v.voterSchool,
       candidates.find(c => c.id === v.candidateId)?.name || 'Unknown',
       v.reason,
+      v.voterIp || 'N/A',
+      v.googleDisplayName || 'N/A',
       v.timestamp?.toDate().toLocaleString() || ''
     ]);
 
@@ -699,37 +706,58 @@ export const AdminPanel: React.FC<{
                 <table className="w-full text-left">
                   <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                     <tr>
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">Google Account</th>}
                       <th className="px-6 py-4">Voter</th>
+                      <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
                       <th className="px-6 py-4">Choice</th>
+                      {permissions?.isFullAdmin && <th className="px-6 py-4">IP Address</th>}
                       <th className="px-6 py-4">Reason</th>
                       <th className="px-6 py-4">Time</th>
-                      <th className="px-6 py-4 text-right">Action</th>
+                      {permissions?.isFullAdmin && <th className="px-6 py-4 text-right">Action</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
                     {votes.map((v, i) => (
                       <tr key={i} className="hover:bg-gray-800/50 transition-colors">
+                        {permissions?.isFullAdmin && (
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {v.googlePhotoURL ? (
+                                <img src={v.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
+                              )}
+                              <div className="text-xs text-gray-400 truncate max-w-[120px]" title={v.googleDisplayName}>
+                                {v.googleDisplayName || 'N/A'}
+                              </div>
+                            </div>
+                          </td>
+                        )}
                         <td className="px-6 py-4 font-medium">{v.voterName}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-indigo-400">{v.voterRegistrationId || 'N/A'}</td>
                         <td className="px-6 py-4 text-gray-400">{v.voterSchool}</td>
                         <td className="px-6 py-4">
                           <span className="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded text-xs font-bold">
                             {candidates.find(c => c.id === v.candidateId)?.name || 'Unknown'}
                           </span>
                         </td>
+                        {permissions?.isFullAdmin && <td className="px-6 py-4 font-mono text-xs text-gray-500">{v.voterIp || 'N/A'}</td>}
                         <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{v.reason}</td>
                         <td className="px-6 py-4 text-xs text-gray-500">
                           {v.timestamp?.toDate().toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <button 
-                            onClick={() => handleDeleteVote(v.id)}
-                            className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
-                            title="Delete Vote"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
+                        {permissions?.isFullAdmin && (
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => handleDeleteVote(v.id)}
+                              className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                              title="Delete Vote"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
