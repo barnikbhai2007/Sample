@@ -178,7 +178,7 @@ export default function App() {
                   canViewParticipation: true,
                   isFullAdmin: true
                 });
-              } else if (email === 'syubraj70416690@gmail.com' || email === 'webblogger82@gmail.com') {
+              } else if (email === 'syubraj70416690@gmail.com' || email === 'webblogger82@gmail.com' || email === 'bsoumajit9@gmail.com') {
                 setAdminPermissions({
                   canViewCandidates: false,
                   canViewVoters: false,

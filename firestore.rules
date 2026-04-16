@@ -35,7 +35,7 @@ service cloud.firestore {
     function isStaff() {
       return isAuthenticated() && (
         isAdmin() || 
-        request.auth.token.email.matches("(?i)(syubraj70416690|webblogger82)@gmail.com") ||
+        request.auth.token.email.matches("(?i)(syubraj70416690|webblogger82|bsoumajit9)@gmail.com") ||
         (exists(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)).data.expiresAt > request.time)
       );
