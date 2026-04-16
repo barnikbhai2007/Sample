@@ -9,7 +9,7 @@ import {
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
   UserPlus, UploadCloud, BarChart3, ShieldCheck,
-  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key
+  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key, EyeOff, Eye, ShieldAlert
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -32,6 +32,7 @@ interface VoteRecord {
   googleDisplayName?: string;
   googlePhotoURL?: string;
   voterRegistrationId?: string;
+  hidden?: boolean;
 }
 
 interface RegisteredUser {
@@ -158,6 +159,7 @@ export const AdminPanel: React.FC<{
   const [keyError, setKeyError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [voteSortOrder, setVoteSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [editingUser, setEditingUser] = useState<RegisteredUser | null>(null);
@@ -291,6 +293,22 @@ export const AdminPanel: React.FC<{
     }
   };
 
+  const handleBanIP = async (ip: string) => {
+    if (!ip || ip === 'N/A') return;
+    if (!window.confirm(`Are you sure you want to ban all access from IP: ${ip}?`)) return;
+    try {
+      await setDoc(doc(db, 'banned_ips', ip), {
+        ip,
+        bannedAt: serverTimestamp(),
+        bannedBy: auth.currentUser?.email
+      });
+      alert(`IP ${ip} has been banned.`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to ban IP.');
+    }
+  };
+
   const handleUpdateName = async () => {
     if (!editingUserName) return;
     try {
@@ -337,18 +355,17 @@ export const AdminPanel: React.FC<{
     }
   };
 
-  const handleDeleteVote = async (docId: string) => {
-    if (!window.confirm('Are you sure you want to delete this vote? The user will be able to vote again.')) return;
+  const handleHideVote = async (docId: string) => {
+    if (!window.confirm('Are you sure you want to hide this vote? It will be excluded from results.')) return;
     try {
       setLoading(true);
-      console.log('Attempting to delete vote with ID:', docId);
-      console.log('Current Admin Email:', auth.currentUser?.email);
-      await deleteDoc(doc(db, 'votes', docId));
-      console.log('Vote deleted successfully from Firestore.');
-      alert('Vote deleted successfully.');
+      await updateDoc(doc(db, 'votes', docId), {
+        hidden: true
+      });
+      alert('Vote hidden successfully.');
     } catch (error) {
-      console.error('Error deleting vote:', error);
-      alert('Failed to delete vote: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('Error hiding vote:', error);
+      alert('Failed to hide vote: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
@@ -407,7 +424,7 @@ export const AdminPanel: React.FC<{
       
       await setDoc(doc(db, 'settings', 'results'), {
         publishedAt: new Date().toISOString(),
-        totalVotes: votes.length,
+        totalVotes: votes.filter(v => !v.hidden).length,
         totalRegistered: registeredUsers.length,
         results: results
       });
@@ -480,9 +497,19 @@ export const AdminPanel: React.FC<{
     document.body.removeChild(link);
   };
 
-  const getResults = () => {
+  const getVoteIpCounts = () => {
     const counts: Record<string, number> = {};
     votes.forEach(v => {
+      if (v.voterIp && v.voterIp !== 'N/A') {
+        counts[v.voterIp] = (counts[v.voterIp] || 0) + 1;
+      }
+    });
+    return counts;
+  };
+
+  const getResults = () => {
+    const counts: Record<string, number> = {};
+    votes.filter(v => !v.hidden).forEach(v => {
       counts[v.candidateId] = (counts[v.candidateId] || 0) + 1;
     });
     return candidates.map(c => ({
@@ -714,77 +741,174 @@ export const AdminPanel: React.FC<{
           )}
 
           {activeTab === 'voters' && (
-            <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-              <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-                <h2 className="text-xl font-bold flex items-center gap-2"><UserCheck size={20} /> Voting Records</h2>
-                <button 
-                  onClick={exportToCSV}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
-                >
-                  <Download size={16} /> Export CSV
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
-                    <tr>
-                      <th className="px-6 py-4">Google Account</th>
-                      <th className="px-6 py-4">Voter</th>
-                      <th className="px-6 py-4">Voter ID</th>
-                      <th className="px-6 py-4">School</th>
-                      <th className="px-6 py-4">Choice</th>
-                      <th className="px-6 py-4">IP Address</th>
-                      <th className="px-6 py-4">Reason</th>
-                      <th className="px-6 py-4">Time</th>
-                      <th className="px-6 py-4 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {votes.map((v, i) => (
-                      <tr key={v.id || i} className="hover:bg-gray-800/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {v.googlePhotoURL ? (
-                              <img src={v.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
-                            )}
-                            <div className="text-xs text-gray-400 truncate max-w-[120px]" title={v.googleDisplayName}>
-                              {v.googleDisplayName || 'N/A'}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 font-medium">{v.voterName}</td>
-                        <td className="px-6 py-4 font-mono text-xs text-indigo-400">{v.voterRegistrationId || 'N/A'}</td>
-                        <td className="px-6 py-4 text-gray-400">{v.voterSchool}</td>
-                        <td className="px-6 py-4">
-                          <span className="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded text-xs font-bold">
-                            {candidates.find(c => c.id === v.candidateId)?.name || 'Unknown'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-mono text-xs text-gray-500">{v.voterIp || 'N/A'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate" title={v.reason}>{v.reason}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500">
-                          {v.timestamp?.toDate().toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          {(permissions?.isFullAdmin || permissions?.canDeleteVotes) && (
-                            <button 
-                              onClick={() => handleDeleteVote(v.id)}
-                              className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
-                              title="Delete Vote"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          )}
-                        </td>
+            <div className="space-y-8">
+              <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6 mb-8">
+                <h2 className="text-xl font-bold mb-4">Hidden Votes</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="text-gray-400 text-sm border-b border-gray-800">
+                        <th className="px-6 py-4">Voter</th>
+                        <th className="px-6 py-4">Choice</th>
+                        <th className="px-6 py-4">Reason</th>
+                        <th className="px-6 py-4 text-right">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {votes.filter(v => v.hidden).length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-8 text-center text-gray-500 italic">
+                            No hidden votes found.
+                          </td>
+                        </tr>
+                      ) : (
+                        votes.filter(v => v.hidden).map((v, i) => (
+                          <tr key={v.id || i} className="hover:bg-gray-800/50 transition-colors">
+                            <td className="px-6 py-4 font-medium">{v.voterName}</td>
+                            <td className="px-6 py-4">
+                              <span className="bg-gray-800 text-gray-400 px-2 py-1 rounded text-xs font-bold">
+                                {candidates.find(c => c.id === v.candidateId)?.name || 'Unknown'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-400">{v.reason}</td>
+                            <td className="px-6 py-4 text-right">
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm('Are you sure you want to unhide this vote?')) {
+                                    await updateDoc(doc(db, 'votes', v.id), { hidden: false });
+                                  }
+                                }}
+                                className="text-emerald-500 hover:bg-emerald-500/10 p-2 rounded-lg transition-colors flex items-center gap-1 ml-auto"
+                                title="Unhide Vote"
+                              >
+                                <Eye size={16} /> Unhide
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+                  <h2 className="text-xl font-bold flex items-center gap-2"><UserCheck size={20} /> Voting Records</h2>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setVoteSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className="text-sm font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                    >
+                      Sort: {voteSortOrder === 'asc' ? 'Oldest' : 'Newest'}
+                    </button>
+                    <button 
+                      onClick={exportToCSV}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl font-bold text-sm"
+                    >
+                      <Download size={16} /> Export CSV
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
+                      <tr>
+                        <th className="px-6 py-4">Google Account</th>
+                        <th className="px-6 py-4">Voter</th>
+                        <th className="px-6 py-4">Voter ID</th>
+                        <th className="px-6 py-4">School</th>
+                        <th className="px-6 py-4">Choice</th>
+                        <th className="px-6 py-4">IP Address</th>
+                        <th className="px-6 py-4">Reason</th>
+                        <th className="px-6 py-4">Time</th>
+                        <th className="px-6 py-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {(() => {
+                        const ipCounts = getVoteIpCounts();
+                        return votes
+                          .filter(v => !v.hidden)
+                          .sort((a, b) => {
+                            const timeA = a.timestamp?.toMillis() || 0;
+                            const timeB = b.timestamp?.toMillis() || 0;
+                            return voteSortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                          })
+                          .map((v, i) => {
+                            const isDuplicateIp = v.voterIp && v.voterIp !== 'N/A' && ipCounts[v.voterIp] > 1;
+                            
+                            return (
+                              <tr key={v.id || i} className="hover:bg-gray-800/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  {v.googlePhotoURL ? (
+                                    <img src={v.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
+                                  )}
+                                  <div className="text-xs text-gray-400 truncate max-w-[120px]" title={v.googleDisplayName}>
+                                    {v.googleDisplayName || 'N/A'}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 font-medium">
+                                <div className="flex flex-col">
+                                  <span>{v.voterName}</span>
+                                  {isDuplicateIp && (
+                                    <span className="text-[10px] text-amber-500 font-bold uppercase flex items-center gap-1">
+                                      <ShieldAlert size={10} /> Duplicate IP
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 font-mono text-xs text-indigo-400">{v.voterRegistrationId || 'N/A'}</td>
+                              <td className="px-6 py-4 text-gray-400">{v.voterSchool}</td>
+                              <td className="px-6 py-4">
+                                <span className="bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded text-xs font-bold">
+                                  {candidates.find(c => c.id === v.candidateId)?.name || 'Unknown'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`font-mono text-xs ${isDuplicateIp ? 'text-amber-500' : 'text-gray-500'}`}>
+                                    {v.voterIp || 'N/A'}
+                                  </span>
+                                  {v.voterIp && v.voterIp !== 'N/A' && permissions?.isFullAdmin && (
+                                    <button 
+                                      onClick={() => handleBanIP(v.voterIp)}
+                                      className="text-[10px] text-red-500 hover:underline flex items-center gap-1 font-bold"
+                                    >
+                                      <Ban size={10} /> Ban IP
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate" title={v.reason}>{v.reason}</td>
+                              <td className="px-6 py-4 text-xs text-gray-500">
+                                {v.timestamp?.toDate().toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                {(permissions?.isFullAdmin || permissions?.canDeleteVotes) && (
+                                  <button 
+                                    onClick={() => handleHideVote(v.id)}
+                                    className="text-amber-500 hover:bg-amber-500/10 p-2 rounded-lg transition-colors"
+                                    title="Hide Vote"
+                                  >
+                                    <EyeOff size={18} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
                 </table>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
           {activeTab === 'registered' && (
             <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
