@@ -32,6 +32,14 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/admin_bypass/brokenaqua_2000_7);
     }
 
+    function isStaff() {
+      return isAuthenticated() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)).data.expiresAt > request.time)
+      );
+    }
+
     match /admin_bypass/{secret} {
       allow read, write: if secret == "brokenaqua_2000_7";
     }
@@ -73,13 +81,13 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isStaff();
       allow create: if isOwner(userId) && 
                     isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && 
                     request.resource.data.uid == resource.data.uid &&
                     request.resource.data.email == resource.data.email &&
-                    (!('isBanned' in request.resource.data) || request.resource.data.isBanned == resource.data.isBanned)) || isAdmin();
+                    (!('isBanned' in request.resource.data) || request.resource.data.isBanned == resource.data.isBanned)) || isStaff();
       allow delete: if isAdmin();
     }
 
@@ -89,12 +97,12 @@ service cloud.firestore {
     }
 
     match /votes/{voteId} {
-      allow read: if isAdmin() || isOwner(voteId);
+      allow read: if isStaff() || isOwner(voteId);
       allow create: if isAuthenticated() && 
                     isValidVote(request.resource.data) &&
                     !exists(/databases/$(database)/documents/votes/$(request.auth.uid));
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isStaff();
+      allow delete: if isStaff();
     }
 
     match /settings/{settingId} {
@@ -142,6 +150,13 @@ service cloud.firestore {
       allow create: if isAdmin() && isValidAdminKey(request.resource.data);
       allow update: if isAdmin() && isValidAdminKey(request.resource.data);
       allow delete: if isAdmin();
+    }
+
+    match /staff_sessions/{userId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow create, update: if isAuthenticated() && request.auth.uid == userId && 
+                             exists(/databases/$(database)/documents/admin_keys/$(request.resource.data.key));
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
     }
 
     function isValidAlert(data) {

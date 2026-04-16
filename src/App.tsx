@@ -112,6 +112,21 @@ export default function App() {
         const keySnap = await getDoc(doc(db, 'admin_keys', adminSecret));
         if (keySnap.exists()) {
           const keyData = keySnap.data();
+          
+          // Create a staff session if user is logged in
+          if (user) {
+            try {
+              await setDoc(doc(db, 'staff_sessions', user.uid), {
+                key: adminSecret,
+                permissions: keyData.permissions,
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+              });
+            } catch (sessionErr) {
+              console.error('Failed to create staff session:', sessionErr);
+              // We still allow them to see the panel in UI, but backend might fail if rules check session
+            }
+          }
+
           setAdminPermissions({
             ...keyData.permissions,
             isFullAdmin: false

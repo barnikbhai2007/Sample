@@ -119,7 +119,9 @@
             "canViewRegistered": { "type": "boolean" },
             "canViewResults": { "type": "boolean" },
             "canViewReviews": { "type": "boolean" },
-            "canViewSecurity": { "type": "boolean" }
+            "canViewSecurity": { "type": "boolean" },
+            "canDeleteVotes": { "type": "boolean" },
+            "canEditUsers": { "type": "boolean" }
           }
         },
         "createdAt": { "type": "string", "format": "date-time" }

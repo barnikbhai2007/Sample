@@ -134,6 +134,8 @@ export const AdminPanel: React.FC<{
     canViewResults: boolean;
     canViewReviews: boolean;
     canViewSecurity: boolean;
+    canDeleteVotes: boolean;
+    canEditUsers: boolean;
     isFullAdmin: boolean;
   } | null;
 }> = ({ isEmergency, permissions }) => {
@@ -158,6 +160,7 @@ export const AdminPanel: React.FC<{
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const [editingUser, setEditingUser] = useState<RegisteredUser | null>(null);
   const [newCandidate, setNewCandidate] = useState({ name: '', logoUrl: '', order: 1 });
   const [newKeyLabel, setNewKeyLabel] = useState('');
   const [newKeyPermissions, setNewKeyPermissions] = useState({
@@ -166,7 +169,9 @@ export const AdminPanel: React.FC<{
     canViewRegistered: true,
     canViewResults: true,
     canViewReviews: false,
-    canViewSecurity: false
+    canViewSecurity: false,
+    canDeleteVotes: false,
+    canEditUsers: false
   });
 
   const handleCreateKey = async () => {
@@ -344,6 +349,23 @@ export const AdminPanel: React.FC<{
     } catch (error) {
       console.error('Error deleting vote:', error);
       alert('Failed to delete vote: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateUserName = async () => {
+    if (!editingUser) return;
+    try {
+      setLoading(true);
+      await updateDoc(doc(db, 'users', editingUser.uid), {
+        name: editingUser.name
+      });
+      setEditingUser(null);
+      alert('User name updated successfully.');
+    } catch (err) {
+      console.error('Error updating user name:', err);
+      alert('Failed to update user name.');
     } finally {
       setLoading(false);
     }
@@ -706,34 +728,32 @@ export const AdminPanel: React.FC<{
                 <table className="w-full text-left">
                   <thead className="bg-gray-800 text-gray-400 text-sm uppercase">
                     <tr>
-                      {permissions?.isFullAdmin && <th className="px-6 py-4">Google Account</th>}
+                      <th className="px-6 py-4">Google Account</th>
                       <th className="px-6 py-4">Voter</th>
                       <th className="px-6 py-4">Voter ID</th>
                       <th className="px-6 py-4">School</th>
                       <th className="px-6 py-4">Choice</th>
-                      {permissions?.isFullAdmin && <th className="px-6 py-4">IP Address</th>}
+                      <th className="px-6 py-4">IP Address</th>
                       <th className="px-6 py-4">Reason</th>
                       <th className="px-6 py-4">Time</th>
-                      {permissions?.isFullAdmin && <th className="px-6 py-4 text-right">Action</th>}
+                      <th className="px-6 py-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
                     {votes.map((v, i) => (
-                      <tr key={i} className="hover:bg-gray-800/50 transition-colors">
-                        {permissions?.isFullAdmin && (
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              {v.googlePhotoURL ? (
-                                <img src={v.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
-                              )}
-                              <div className="text-xs text-gray-400 truncate max-w-[120px]" title={v.googleDisplayName}>
-                                {v.googleDisplayName || 'N/A'}
-                              </div>
+                      <tr key={v.id || i} className="hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {v.googlePhotoURL ? (
+                              <img src={v.googlePhotoURL} alt="" className="w-8 h-8 rounded-full border border-gray-700" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] text-gray-500">?</div>
+                            )}
+                            <div className="text-xs text-gray-400 truncate max-w-[120px]" title={v.googleDisplayName}>
+                              {v.googleDisplayName || 'N/A'}
                             </div>
-                          </td>
-                        )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 font-medium">{v.voterName}</td>
                         <td className="px-6 py-4 font-mono text-xs text-indigo-400">{v.voterRegistrationId || 'N/A'}</td>
                         <td className="px-6 py-4 text-gray-400">{v.voterSchool}</td>
@@ -742,13 +762,13 @@ export const AdminPanel: React.FC<{
                             {candidates.find(c => c.id === v.candidateId)?.name || 'Unknown'}
                           </span>
                         </td>
-                        {permissions?.isFullAdmin && <td className="px-6 py-4 font-mono text-xs text-gray-500">{v.voterIp || 'N/A'}</td>}
-                        <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{v.reason}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-gray-500">{v.voterIp || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate" title={v.reason}>{v.reason}</td>
                         <td className="px-6 py-4 text-xs text-gray-500">
                           {v.timestamp?.toDate().toLocaleString()}
                         </td>
-                        {permissions?.isFullAdmin && (
-                          <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right">
+                          {(permissions?.isFullAdmin || permissions?.canDeleteVotes) && (
                             <button 
                               onClick={() => handleDeleteVote(v.id)}
                               className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
@@ -756,8 +776,8 @@ export const AdminPanel: React.FC<{
                             >
                               <Trash2 size={18} />
                             </button>
-                          </td>
-                        )}
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -868,7 +888,7 @@ export const AdminPanel: React.FC<{
                               <td className="px-6 py-4 font-medium">
                                 <div className="flex items-center gap-2 group">
                                   <span>{u.name || 'N/A'}</span>
-                                  {permissions?.isFullAdmin && (
+                                  {(permissions?.isFullAdmin || permissions?.canEditUsers) && (
                                     <button 
                                       onClick={() => setEditingUserName({ uid: u.uid, name: u.name || '' })}
                                       className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-indigo-300 transition-opacity"
@@ -1185,7 +1205,12 @@ export const AdminPanel: React.FC<{
                             className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-indigo-600 focus:ring-indigo-500"
                           />
                           <span className="text-xs text-gray-400 group-hover:text-gray-200 transition-colors">
-                            {key.replace('canView', 'View ')}
+                            {key
+                              .replace('canView', 'View ')
+                              .replace('canDelete', 'Delete ')
+                              .replace('canEdit', 'Edit ')
+                              .replace(/([A-Z])/g, ' $1')
+                              .trim()}
                           </span>
                         </label>
                       ))}
