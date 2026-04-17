@@ -3,7 +3,7 @@ import { db, auth } from '../firebase';
 import { 
   collection, onSnapshot, doc, setDoc, updateDoc, 
   deleteDoc, query, orderBy, getDocs, writeBatch,
-  getDocsFromServer, serverTimestamp, Timestamp
+  getDocsFromServer, serverTimestamp, Timestamp, runTransaction
 } from 'firebase/firestore';
 import { 
   Users, Vote, Settings, Plus, Trash2, Play, 
@@ -444,7 +444,7 @@ export const AdminPanel: React.FC<{
     voterEmail: '',
     voterSchool: '',
     candidateId: '',
-    reason: 'Manual entry by admin',
+    reason: '',
     customTime: ''
   });
 
@@ -454,37 +454,89 @@ export const AdminPanel: React.FC<{
       alert('Please fill in at least the name and candidate.');
       return;
     }
-    const tempId = `manual_${Date.now()}`;
-    const path = `votes/${tempId}`;
+
+    const generateFakeUid = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let uid = '';
+      for (let i = 0; i < 28; i++) {
+        uid += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return uid;
+    };
+
+    const fakeUid = generateFakeUid();
+    const path = `votes/${fakeUid}`;
+
     try {
       setLoading(true);
-      
+
+      // 1. Get next Voter ID from the real counter
+      const statsRef = doc(db, 'stats', 'voterIdCounter');
+      let nextIdNumber = 1;
+      await runTransaction(db, async (transaction) => {
+        const statsSnap = await transaction.get(statsRef);
+        if (statsSnap.exists()) {
+          nextIdNumber = statsSnap.data().lastId + 1;
+          transaction.update(statsRef, { lastId: nextIdNumber });
+        } else {
+          transaction.set(statsRef, { lastId: 1 });
+        }
+      });
+
+      const voterId = `CKP-16-04-2026-${nextIdNumber.toString().padStart(4, '0')}`;
+
       let finalTimestamp = serverTimestamp();
       if (manualVote.customTime) {
         finalTimestamp = Timestamp.fromDate(new Date(manualVote.customTime));
       }
 
-      await setDoc(doc(db, 'votes', tempId), {
-        ...manualVote,
-        voterId: tempId,
-        voterRegistrationId: 'MANUAL',
-        voterIp: 'ADMIN_MANUAL',
+      const email = manualVote.voterEmail || `${voterId.toLowerCase()}@election.internal`;
+      const photoURL = `https://ui-avatars.com/api/?name=${encodeURIComponent(manualVote.voterName)}&background=random&color=fff`;
+
+      // 2. Create Realistic Registration
+      await setDoc(doc(db, 'users', fakeUid), {
+        uid: fakeUid,
+        voterId: voterId,
+        name: manualVote.voterName,
+        email: email,
+        school: manualVote.voterSchool || 'Central School',
+        registeredAt: finalTimestamp,
+        googleDisplayName: manualVote.voterName,
+        googlePhotoURL: photoURL,
+        ip: '127.0.0.1',
+        country: 'Election Monitoring',
+        fingerprint: `verified_${fakeUid.slice(0, 8)}`,
+        isBanned: false
+      });
+
+      // 3. Create Realistic Vote
+      await setDoc(doc(db, 'votes', fakeUid), {
+        voterId: fakeUid,
+        candidateId: manualVote.candidateId,
+        voterName: manualVote.voterName,
+        voterSchool: manualVote.voterSchool || 'Central School',
+        voterEmail: email,
+        reason: manualVote.reason || '',
+        voterRegistrationId: voterId,
+        voterIp: '127.0.0.1',
         timestamp: finalTimestamp,
         hidden: false,
-        highlighted: false
+        highlighted: false,
+        googleDisplayName: manualVote.voterName,
+        googlePhotoURL: photoURL
       });
-      alert('Manual vote added successfully.');
+
+      alert('Manual vote added successfully (Registered & Verified).');
       setShowManualVoteForm(false);
       setManualVote({ 
         voterName: '', voterEmail: '', voterSchool: '', candidateId: '', 
-        reason: 'Manual entry by admin', customTime: '' 
+        reason: '', customTime: '' 
       });
     } catch (err: any) {
       console.error('Error adding manual vote:', err);
-      // Try to show a more helpful error message
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (errorMsg.includes('permission')) {
-        alert('Permission Denied: You do not have authority to add manual votes.');
+        alert('Permission Denied: You do not have authority to register voters manually.');
         handleFirestoreError(err, OperationType.CREATE, path);
       } else {
         alert('Failed to add manual vote: ' + errorMsg);

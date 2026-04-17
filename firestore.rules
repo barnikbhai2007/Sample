@@ -75,7 +75,7 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.uid is string && data.uid == request.auth.uid &&
+      return data.uid is string && (data.uid == request.auth.uid || canEditUsers()) &&
              data.email is string && isValidEmail(data.email) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
              (!('ip' in data) || (data.ip is string)) &&
@@ -105,7 +105,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isStaff();
-      allow create: if isOwner(userId) && 
+      allow create: if (isOwner(userId) || canEditUsers()) && 
                     isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && 
                     request.resource.data.uid == resource.data.uid &&
