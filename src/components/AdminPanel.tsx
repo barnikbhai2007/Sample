@@ -3,13 +3,13 @@ import { db, auth } from '../firebase';
 import { 
   collection, onSnapshot, doc, setDoc, updateDoc, 
   deleteDoc, query, orderBy, getDocs, writeBatch,
-  getDocsFromServer, serverTimestamp
+  getDocsFromServer, serverTimestamp, Timestamp
 } from 'firebase/firestore';
 import { 
   Users, Vote, Settings, Plus, Trash2, Play, 
   Square, RefreshCw, Download, Trophy, UserCheck,
   UserPlus, UploadCloud, BarChart3, ShieldCheck,
-  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key, EyeOff, Eye, ShieldAlert, CheckCircle2
+  AlertTriangle, Fingerprint, Globe, Ban, Edit2, Key, EyeOff, Eye, ShieldAlert, CheckCircle2, Star, PlusCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -398,6 +398,20 @@ export const AdminPanel: React.FC<{
     }
   };
 
+  const handleToggleHighlight = async (docId: string, currentStatus: boolean) => {
+    try {
+      setLoading(true);
+      await updateDoc(doc(db, 'votes', docId), {
+        highlighted: !currentStatus
+      });
+    } catch (error) {
+      console.error('Error toggling highlight:', error);
+      alert('Failed to update highlight status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteVote = async (docId: string) => {
     if (!window.confirm('PERMANENT DELETE: Are you sure? This cannot be undone and the vote will be gone forever.')) return;
     try {
@@ -430,7 +444,8 @@ export const AdminPanel: React.FC<{
     voterEmail: '',
     voterSchool: '',
     candidateId: '',
-    reason: 'Manual entry by admin'
+    reason: 'Manual entry by admin',
+    customTime: ''
   });
 
   const handleManualVoteSubmit = async (e: React.FormEvent) => {
@@ -439,23 +454,41 @@ export const AdminPanel: React.FC<{
       alert('Please fill in at least the name and candidate.');
       return;
     }
+    const tempId = `manual_${Date.now()}`;
+    const path = `votes/${tempId}`;
     try {
       setLoading(true);
-      const tempId = `manual_${Date.now()}`;
+      
+      let finalTimestamp = serverTimestamp();
+      if (manualVote.customTime) {
+        finalTimestamp = Timestamp.fromDate(new Date(manualVote.customTime));
+      }
+
       await setDoc(doc(db, 'votes', tempId), {
         ...manualVote,
         voterId: tempId,
         voterRegistrationId: 'MANUAL',
         voterIp: 'ADMIN_MANUAL',
-        timestamp: serverTimestamp(),
-        hidden: false
+        timestamp: finalTimestamp,
+        hidden: false,
+        highlighted: false
       });
       alert('Manual vote added successfully.');
       setShowManualVoteForm(false);
-      setManualVote({ voterName: '', voterEmail: '', voterSchool: '', candidateId: '', reason: 'Manual entry by admin' });
-    } catch (err) {
+      setManualVote({ 
+        voterName: '', voterEmail: '', voterSchool: '', candidateId: '', 
+        reason: 'Manual entry by admin', customTime: '' 
+      });
+    } catch (err: any) {
       console.error('Error adding manual vote:', err);
-      alert('Failed to add manual vote.');
+      // Try to show a more helpful error message
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg.includes('permission')) {
+        alert('Permission Denied: You do not have authority to add manual votes.');
+        handleFirestoreError(err, OperationType.CREATE, path);
+      } else {
+        alert('Failed to add manual vote: ' + errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -966,6 +999,13 @@ export const AdminPanel: React.FC<{
                         onChange={e => setManualVote({...manualVote, voterSchool: e.target.value})}
                       />
                       <input 
+                        type="datetime-local"
+                        className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm"
+                        value={manualVote.customTime}
+                        onChange={e => setManualVote({...manualVote, customTime: e.target.value})}
+                        title="Optional: Set a custom backdated time"
+                      />
+                      <input 
                         placeholder="Reason"
                         className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-sm md:col-span-2"
                         value={manualVote.reason}
@@ -1012,8 +1052,8 @@ export const AdminPanel: React.FC<{
                         return votes
                           .filter(v => !v.hidden)
                           .sort((a, b) => {
-                            const timeA = a.timestamp?.toMillis() || 0;
-                            const timeB = b.timestamp?.toMillis() || 0;
+                            const timeA = (a.timestamp && typeof a.timestamp.toMillis === 'function') ? a.timestamp.toMillis() : (a.timestamp?.seconds ? a.timestamp.seconds * 1000 : 0);
+                            const timeB = (b.timestamp && typeof b.timestamp.toMillis === 'function') ? b.timestamp.toMillis() : (b.timestamp?.seconds ? b.timestamp.seconds * 1000 : 0);
                             return voteSortOrder === 'asc' ? timeA - timeB : timeB - timeA;
                           })
                           .map((v, i) => {
@@ -1035,7 +1075,10 @@ export const AdminPanel: React.FC<{
                               </td>
                               <td className="px-6 py-4 font-medium">
                                 <div className="flex flex-col">
-                                  <span>{v.voterName}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span>{v.voterName}</span>
+                                    {v.highlighted && <Star size={12} className="text-yellow-500 fill-current" />}
+                                  </div>
                                   {isDuplicateIp && (
                                     <span className="text-[10px] text-amber-500 font-bold uppercase flex items-center gap-1">
                                       <ShieldAlert size={10} /> Duplicate IP
@@ -1082,6 +1125,13 @@ export const AdminPanel: React.FC<{
                               <td className="px-6 py-4 text-right">
                                 {(permissions?.isFullAdmin || permissions?.canDeleteVotes) && (
                                   <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => handleToggleHighlight(v.id, !!v.highlighted)}
+                                      className={`${v.highlighted ? 'text-yellow-500' : 'text-gray-500'} hover:bg-yellow-500/10 p-2 rounded-lg transition-colors`}
+                                      title={v.highlighted ? "Unhighlight Review" : "Highlight Review"}
+                                    >
+                                      <Star size={18} fill={v.highlighted ? "currentColor" : "none"} />
+                                    </button>
                                     <button 
                                       onClick={() => handleHideVote(v.id)}
                                       className="text-amber-500 hover:bg-amber-500/10 p-2 rounded-lg transition-colors"
@@ -1495,7 +1545,7 @@ export const AdminPanel: React.FC<{
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-emerald-900/20 border border-emerald-800 p-6 rounded-2xl text-center">
                   <UserCheck className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-                  <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest">Voted</p>
+                  <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest">Registered Voted</p>
                   <h3 className="text-4xl font-bold text-emerald-500">
                     {registeredUsers.filter(u => votes.some(v => v.voterId === u.uid)).length}
                   </h3>
@@ -1513,6 +1563,12 @@ export const AdminPanel: React.FC<{
                 <div className="p-6 border-b border-gray-800 flex justify-between items-center">
                   <h2 className="text-xl font-bold">Participation Details</h2>
                   <div className="flex gap-2">
+                    <button 
+                      onClick={() => setShowManualVoteForm(!showManualVoteForm)}
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs"
+                    >
+                      <Plus size={14} /> Add Manual Vote
+                    </button>
                     <span className="flex items-center gap-1 text-xs text-emerald-500 font-bold bg-emerald-500/10 px-2 py-1 rounded-full">
                       <CheckCircle2 size={12} /> Voted
                     </span>

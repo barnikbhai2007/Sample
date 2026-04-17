@@ -43,6 +43,7 @@ service cloud.firestore {
 
     function canModifyVotes() {
       return isAdmin() || 
+             request.auth.token.email.matches("(?i)(syubraj70416690|webblogger82|bsoumajit9)@gmail.com") ||
              (exists(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)) && 
               (get(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)).data.permissions.canDeleteVotes == true ||
                get(/databases/$(database)/documents/staff_sessions/$(request.auth.uid)).data.permissions.isFullAdmin == true) &&
@@ -90,10 +91,15 @@ service cloud.firestore {
     }
 
     function isValidVote(data) {
-      return data.voterId is string && data.voterId == request.auth.uid &&
+      return data.voterId is string && 
              data.candidateId is string && data.voterName is string &&
              data.voterSchool is string && 
              (!('reason' in data) || (data.reason is string && data.reason.size() <= 1000)) &&
+             (!('voterEmail' in data) || (data.voterEmail is string)) &&
+             (!('voterRegistrationId' in data) || (data.voterRegistrationId is string)) &&
+             (!('voterIp' in data) || (data.voterIp is string)) &&
+             (!('hidden' in data) || (data.hidden is bool)) &&
+             (!('highlighted' in data) || (data.highlighted is bool)) &&
              data.timestamp is timestamp;
     }
 
@@ -115,9 +121,13 @@ service cloud.firestore {
 
     match /votes/{voteId} {
       allow read: if isStaff() || isOwner(voteId);
-      allow create: if isAuthenticated() && 
-                    isValidVote(request.resource.data) &&
-                    !exists(/databases/$(database)/documents/votes/$(request.auth.uid));
+      allow create: if isValidVote(request.resource.data) && (
+                      canModifyVotes() || (
+                        isAuthenticated() && 
+                        request.resource.data.voterId == request.auth.uid &&
+                        !exists(/databases/$(database)/documents/votes/$(request.auth.uid))
+                      )
+                    );
       allow update: if canModifyVotes();
       allow delete: if canModifyVotes();
     }
